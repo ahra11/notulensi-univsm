@@ -11,6 +11,7 @@ interface MinutesFormProps {
 
 const MinutesForm: React.FC<MinutesFormProps> = ({ onNavigate, initialData }) => {
     const [title, setTitle] = useState(initialData?.title || "");
+    const [agenda, setAgenda] = useState(initialData?.agenda || "");
     const [location, setLocation] = useState(initialData?.location || "");
     const [date, setDate] = useState(initialData?.date || "");
     const [notulensi, setNotulensi] = useState(initialData?.content || "");
@@ -25,7 +26,6 @@ const MinutesForm: React.FC<MinutesFormProps> = ({ onNavigate, initialData }) =>
     const [recordedAudioUrl, setRecordedAudioUrl] = useState<string | null>(null);
     
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-    // Explicitly use globalThis.Blob to avoid collision with @google/genai's internal Blob type
     const audioChunksRef = useRef<globalThis.Blob[]>([]);
 
     const isEditMode = !!initialData;
@@ -59,10 +59,9 @@ const MinutesForm: React.FC<MinutesFormProps> = ({ onNavigate, initialData }) =>
         setStatusMessage("Menyiapkan suara AI...");
         try {
             const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-            // Simplified contents structure as per guidelines
             const response = await ai.models.generateContent({
                 model: "gemini-2.5-flash-preview-tts",
-                contents: { parts: [{ text: `Bacakan dengan perlahan: ${notulensi.substring(0, 1000)}` }] },
+                contents: { parts: [{ text: `Bacakan hasil rapat ini: ${notulensi.substring(0, 1000)}` }] },
                 config: {
                     responseModalities: ["AUDIO"],
                     speechConfig: {
@@ -86,12 +85,9 @@ const MinutesForm: React.FC<MinutesFormProps> = ({ onNavigate, initialData }) =>
                 };
                 source.start();
                 setStatusMessage("Memutar teks...");
-            } else {
-                setIsSpeaking(false);
-                setStatusMessage("");
             }
         } catch (error) {
-            console.error("TTS Error:", error);
+            console.error(error);
             setIsSpeaking(false);
             setStatusMessage("Gagal memutar suara.");
         }
@@ -103,11 +99,7 @@ const MinutesForm: React.FC<MinutesFormProps> = ({ onNavigate, initialData }) =>
             const mediaRecorder = new MediaRecorder(stream);
             mediaRecorderRef.current = mediaRecorder;
             audioChunksRef.current = [];
-            
-            mediaRecorder.ondataavailable = (event) => {
-                if (event.data.size > 0) audioChunksRef.current.push(event.data);
-            };
-            
+            mediaRecorder.ondataavailable = (event) => { if (event.data.size > 0) audioChunksRef.current.push(event.data); };
             mediaRecorder.onstop = async () => {
                 const audioBlob = new globalThis.Blob(audioChunksRef.current, { type: 'audio/webm' });
                 const url = URL.createObjectURL(audioBlob);
@@ -115,58 +107,44 @@ const MinutesForm: React.FC<MinutesFormProps> = ({ onNavigate, initialData }) =>
                 await transcribeAudio(audioBlob);
                 stream.getTracks().forEach(track => track.stop());
             };
-            
             mediaRecorder.start();
             setIsRecording(true);
             setStatusMessage("Merekam...");
-        } catch (err) {
-            alert("Gagal mengakses mikrofon.");
-        }
+        } catch (err) { alert("Gagal mengakses mikrofon."); }
     };
 
     const stopRecording = () => {
         if (mediaRecorderRef.current && isRecording) {
             mediaRecorderRef.current.stop();
             setIsRecording(false);
-            setStatusMessage("Menyiapkan transkripsi...");
         }
     };
 
-    // Explicitly use globalThis.Blob for the parameter to avoid collision with @google/genai's Blob
     const transcribeAudio = async (audioBlob: globalThis.Blob) => {
         setIsTranscribing(true);
-        setStatusMessage("AI sedang memproses suara (Flash Mode)...");
+        setStatusMessage("AI sedang merangkum hasil rapat...");
         try {
             const reader = new FileReader();
             reader.readAsDataURL(audioBlob);
             reader.onloadend = async () => {
-                // Ensure result is string and split it safely to avoid unknown type issues
                 const readerResult = reader.result as string;
-                if (!readerResult) throw new Error("Gagal membaca audio data");
-                
                 const base64Audio = readerResult.split(',')[1] || "";
-                
                 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-                
-                // Use simplified Content structure and remove unnecessary type cast that caused naming collision with global Blob
                 const response = await ai.models.generateContent({
                     model: 'gemini-3-flash-preview',
                     contents: {
                         parts: [
-                            { text: "Transkripsikan audio rapat ini ke teks Bahasa Indonesia formal secara instan. Langsung ke inti pembicaraan." },
-                            { inlineData: { mimeType: 'audio/webm', data: base64Audio } }
+                            { text: "Transkripsikan audio rapat ini ke poin-poin pembahasan formal Bahasa Indonesia." },
+                            { inlineData: { mimeType: 'audio/webm', data: base64Audio } as any }
                         ]
                     }
                 });
-                
                 const text = response.text || "";
                 setNotulensi(prev => prev + (prev ? "\n\n" : "") + text);
                 setIsTranscribing(false);
                 setStatusMessage("Selesai!");
-                setTimeout(() => setStatusMessage(""), 2000);
             };
         } catch (error) {
-            console.error("Transcription error:", error);
             setIsTranscribing(false);
             setStatusMessage("Gagal transkripsi AI.");
         }
@@ -175,189 +153,130 @@ const MinutesForm: React.FC<MinutesFormProps> = ({ onNavigate, initialData }) =>
     const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = e.target.files;
         if (!files) return;
-
         Array.from(files).forEach(file => {
             const reader = new FileReader();
-            reader.onloadend = () => {
-                const base64 = reader.result as string;
-                setDocumentation(prev => [...prev, base64]);
-            };
+            reader.onloadend = () => setDocumentation(prev => [...prev, reader.result as string]);
             reader.readAsDataURL(file);
         });
     };
 
-    const removeImage = (index: number) => {
-        setDocumentation(prev => prev.filter((_, i) => i !== index));
-    };
-
     const handleFormSubmit = async () => {
-        if (!title || !notulensi) {
-            alert("Judul dan Pembahasan tidak boleh kosong.");
-            return;
-        }
-
+        if (!title || !notulensi) { alert("Judul dan Pembahasan tidak boleh kosong."); return; }
         setIsSubmitting(true);
-        setStatusMessage(isEditMode ? "Memperbarui Data..." : "Menyinkronkan ke Cloud...");
-        
+        setStatusMessage("Menyimpan ke Database...");
         const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
         const payload = {
             id: initialData?.id || Date.now().toString(),
             title,
+            agenda,
             location,
             date,
             content: notulensi,
             meetLink,
             documentation: bottomDocumentation,
-            submittedBy: initialData?.submittedBy || currentUser.name || "Anonim",
+            submittedBy: initialData?.submittedBy || currentUser.name || "Staf USM",
             updatedAt: new Date().toLocaleString('id-ID'),
             status: initialData?.status || 'DRAFT'
         };
-
         try {
-            if (isEditMode) {
-                await SpreadsheetService.updateData(payload.id, payload);
-            } else {
-                await SpreadsheetService.saveData(payload);
-            }
-            setStatusMessage("Berhasil disimpan!");
-            setTimeout(() => onNavigate('history'), 1500);
-        } catch (error) {
-            alert("Gagal terhubung ke database.");
-            setStatusMessage("");
-        } finally {
-            setIsSubmitting(false);
-        }
+            if (isEditMode) await SpreadsheetService.updateData(payload.id, payload);
+            else await SpreadsheetService.saveData(payload);
+            onNavigate('history');
+        } catch (error) { alert("Gagal terhubung ke database."); }
+        finally { setIsSubmitting(false); }
     };
 
     return (
-        <div className="pb-32 md:pb-10 bg-slate-50/50 md:bg-white min-h-screen">
-            <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-primary/5 px-4 md:px-8 py-4 flex items-center justify-between">
+        <div className="pb-32 md:pb-10 bg-slate-50 min-h-screen">
+            <header className="sticky top-0 z-50 bg-white border-b border-primary/5 px-4 md:px-8 py-4 flex items-center justify-between shadow-sm">
                 <div className="flex items-center gap-3">
-                    <button onClick={() => onNavigate('dashboard')} className="flex items-center justify-center size-10 rounded-full hover:bg-slate-50 transition-colors">
-                        <span className="material-symbols-outlined text-slate-900">arrow_back</span>
+                    <button onClick={() => onNavigate('dashboard')} className="size-10 rounded-full hover:bg-slate-50 flex items-center justify-center transition-colors">
+                        <span className="material-symbols-outlined">arrow_back</span>
                     </button>
                     <div>
-                        <h1 className="text-lg md:text-xl font-bold tracking-tight">{isEditMode ? 'Edit Notulensi' : 'Buat Notulensi'}</h1>
-                        <span className="text-[9px] block text-green-600 font-bold uppercase tracking-widest -mt-0.5">Database Online Terhubung</span>
+                        <h1 className="text-lg font-bold">{isEditMode ? 'Edit Dokumen' : 'Input Notulensi Baru'}</h1>
+                        <p className="text-[10px] text-primary font-bold uppercase tracking-widest">Portal Akademik USM</p>
                     </div>
                 </div>
-                <div className="flex items-center gap-3">
-                    {statusMessage && (
-                        <span className="hidden md:block text-[10px] font-bold text-primary bg-primary/5 px-3 py-1 rounded-full animate-pulse uppercase tracking-wider">
-                            {statusMessage}
-                        </span>
-                    )}
-                    <button 
-                        onClick={handleFormSubmit}
-                        disabled={isSubmitting}
-                        className="bg-primary text-white px-6 md:px-8 py-2.5 rounded-xl shadow-lg shadow-primary/20 font-bold text-xs uppercase tracking-widest flex items-center gap-2 transition-all hover:scale-105 active:scale-95 disabled:opacity-50"
-                    >
-                        {isSubmitting ? <div className="size-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> : <span className="material-symbols-outlined text-sm">save</span>}
-                        {isSubmitting ? 'Proses...' : (isEditMode ? 'Simpan Perubahan' : 'Simpan')}
-                    </button>
-                </div>
+                <button 
+                    onClick={handleFormSubmit}
+                    disabled={isSubmitting}
+                    className="bg-primary text-white px-6 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-primary/20 flex items-center gap-2 hover:scale-105 transition-all disabled:opacity-50"
+                >
+                    {isSubmitting ? <div className="size-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> : <span className="material-symbols-outlined text-sm">save</span>}
+                    {isSubmitting ? 'Proses...' : 'Simpan'}
+                </button>
             </header>
 
             <div className="max-w-4xl mx-auto p-4 md:p-10 space-y-8">
-                <section className="bg-white p-6 rounded-[2rem] border border-primary/5 shadow-2xl shadow-primary/5 space-y-6">
-                    <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary/40 flex items-center gap-2 mb-2">
-                        <span className="material-symbols-outlined text-base">info</span> Data Identitas Rapat
+                {/* Section Identity */}
+                <section className="bg-white p-6 md:p-8 rounded-[2rem] border border-primary/5 shadow-xl shadow-primary/5 space-y-6">
+                    <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 flex items-center gap-2">
+                        <span className="material-symbols-outlined text-base">info</span> Detail Pelaksanaan Rapat
                     </h2>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-1.5 md:col-span-2">
-                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Nama Agenda / Rapat</label>
-                            <input value={title} onChange={e => setTitle(e.target.value)} className="w-full h-14 rounded-2xl border-slate-100 focus:ring-primary/20 focus:border-primary text-sm bg-slate-50/50 transition-all" placeholder="Misal: Rapat Peninjauan Kurikulum..." type="text" />
+                        <div className="md:col-span-2 space-y-1.5">
+                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Nama Agenda / Judul Rapat</label>
+                            <input value={title} onChange={e => setTitle(e.target.value)} className="w-full h-14 rounded-2xl border-slate-100 bg-slate-50/30 focus:ring-primary focus:border-primary text-sm" placeholder="Misal: Rapat Koordinasi Kurikulum" type="text" />
+                        </div>
+                        <div className="md:col-span-2 space-y-1.5">
+                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Agenda Pembahasan (Poin Utama)</label>
+                            <input value={agenda} onChange={e => setAgenda(e.target.value)} className="w-full h-14 rounded-2xl border-slate-100 bg-slate-50/30 focus:ring-primary focus:border-primary text-sm" placeholder="1. Evaluasi RPS, 2. Pembagian Jadwal, ..." type="text" />
                         </div>
                         <div className="space-y-1.5">
                             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Tempat / Ruang</label>
-                            <input value={location} onChange={e => setLocation(e.target.value)} className="w-full h-14 rounded-2xl border-slate-100 focus:ring-primary/20 focus:border-primary text-sm bg-slate-50/50" placeholder="Ruang Sidang 1..." type="text" />
+                            <input value={location} onChange={e => setLocation(e.target.value)} className="w-full h-14 rounded-2xl border-slate-100 bg-slate-50/30 text-sm" placeholder="Gedung A R.302" type="text" />
                         </div>
                         <div className="space-y-1.5">
-                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Waktu Pelaksanaan</label>
-                            <input value={date} onChange={e => setDate(e.target.value)} className="w-full h-14 rounded-2xl border-slate-100 focus:ring-primary/20 focus:border-primary text-sm bg-slate-50/50" type="date" />
-                        </div>
-                        <div className="space-y-1.5 md:col-span-2">
-                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Tautan Google Meet</label>
-                            <div className="relative">
-                                <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-primary/40 text-lg">link</span>
-                                <input value={meetLink} onChange={e => setMeetLink(e.target.value)} className="w-full h-14 pl-12 rounded-2xl border-slate-100 focus:ring-primary/20 focus:border-primary text-sm bg-slate-50/50" placeholder="https://meet.google.com/abc-defg-hij" type="url" />
-                            </div>
+                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Tanggal Rapat</label>
+                            <input value={date} onChange={e => setDate(e.target.value)} className="w-full h-14 rounded-2xl border-slate-100 bg-slate-50/30 text-sm" type="date" />
                         </div>
                     </div>
                 </section>
 
-                <section className="bg-white p-6 rounded-[2rem] border border-primary/5 shadow-2xl shadow-primary/5 space-y-6">
-                    <div className="flex justify-between items-center mb-2">
-                        <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary/40 flex items-center gap-2">
-                            <span className="material-symbols-outlined text-base">description</span> Konten Notulensi
+                {/* Section Content */}
+                <section className="bg-white p-6 md:p-8 rounded-[2rem] border border-primary/5 shadow-xl shadow-primary/5 space-y-6">
+                    <div className="flex justify-between items-center">
+                        <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 flex items-center gap-2">
+                            <span className="material-symbols-outlined text-base">description</span> Hasil Pembahasan Rapat
                         </h2>
                         <div className="flex items-center gap-2">
-                            <button 
-                                type="button"
-                                onClick={handleTTS}
-                                disabled={isSpeaking || !notulensi}
-                                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${isSpeaking ? 'bg-amber-500 text-white animate-pulse' : 'bg-amber-50 text-amber-600 hover:bg-amber-100'}`}
-                            >
-                                <span className="material-symbols-outlined text-lg">{isSpeaking ? 'volume_up' : 'play_circle'}</span>
-                                {isSpeaking ? 'Membaca...' : 'Cek Suara'}
+                            <button onClick={handleTTS} disabled={isSpeaking || !notulensi} className={`p-2.5 rounded-xl transition-all ${isSpeaking ? 'bg-amber-500 text-white animate-pulse' : 'bg-amber-50 text-amber-600 hover:bg-amber-100'}`} title="Dengarkan Review Suara AI">
+                                <span className="material-symbols-outlined">volume_up</span>
                             </button>
-                            <div className="h-6 w-px bg-slate-100 mx-1"></div>
-                            {isTranscribing && <div className="size-3 border-2 border-primary/30 border-t-primary rounded-full animate-spin"></div>}
-                            <button 
-                                type="button"
-                                onClick={isRecording ? stopRecording : startRecording}
-                                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all shadow-md active:scale-95 ${isRecording ? 'bg-red-500 text-white shadow-red-200' : 'bg-primary/5 text-primary shadow-primary/5'}`}
-                            >
-                                <span className="material-symbols-outlined text-lg">{isRecording ? 'stop_circle' : 'mic'}</span>
-                                {isRecording ? 'Selesai Rekam' : 'Input Suara'}
+                            <button onClick={isRecording ? stopRecording : startRecording} className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${isRecording ? 'bg-red-500 text-white animate-pulse' : 'bg-primary/5 text-primary hover:bg-primary/10'}`}>
+                                <span className="material-symbols-outlined text-lg">{isRecording ? 'stop' : 'mic'}</span>
+                                {isRecording ? 'Berhenti' : 'Input Suara'}
                             </button>
                         </div>
                     </div>
-
-                    {recordedAudioUrl && (
-                        <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex flex-col gap-2">
-                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Hasil Rekaman Terakhir:</span>
-                            <audio src={recordedAudioUrl} controls className="w-full h-10" />
-                        </div>
-                    )}
-
+                    {statusMessage && <div className="text-[10px] font-bold text-primary animate-pulse uppercase text-center bg-primary/5 py-2 rounded-lg">{statusMessage}</div>}
                     <textarea 
                         value={notulensi}
                         onChange={(e) => setNotulensi(e.target.value)}
-                        className="w-full p-6 rounded-[2rem] border-slate-100 focus:ring-primary/20 focus:border-primary text-sm resize-none bg-slate-50/50 leading-relaxed min-h-[400px]" 
-                        placeholder="Tuliskan detail pembahasan di sini..." 
+                        className="w-full p-6 rounded-[2rem] border-slate-100 bg-slate-50/30 focus:ring-primary text-sm min-h-[400px] leading-relaxed" 
+                        placeholder="Tuliskan butir-butir hasil rapat secara detail..." 
                     />
                 </section>
 
-                <section className="bg-white p-6 rounded-[2rem] border border-primary/5 shadow-2xl shadow-primary/5 space-y-6">
+                {/* Section Documentation */}
+                <section className="bg-white p-6 md:p-8 rounded-[2rem] border border-primary/5 shadow-xl shadow-primary/5 space-y-6">
                     <div className="flex justify-between items-center">
-                        <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary/40 flex items-center gap-2">
-                            <span className="material-symbols-outlined text-base">photo_library</span> Screenshot & Dokumentasi
+                        <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 flex items-center gap-2">
+                            <span className="material-symbols-outlined text-base">photo_library</span> Lampiran Dokumentasi
                         </h2>
                         <label className="cursor-pointer bg-primary/5 text-primary px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-primary/10 transition-colors">
-                            <span className="material-symbols-outlined text-sm align-middle mr-1">upload</span> Unggah Gambar
+                            <span className="material-symbols-outlined text-sm align-middle mr-1">add_photo_alternate</span> Tambah Gambar
                             <input type="file" accept="image/*" multiple onChange={handleFileUpload} className="hidden" />
                         </label>
                     </div>
-
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                         {bottomDocumentation.map((img, idx) => (
-                            <div key={idx} className="relative group aspect-video rounded-xl overflow-hidden border border-slate-100 shadow-sm">
-                                <img src={img} alt={`dok-${idx}`} className="w-full h-full object-cover" />
-                                <button 
-                                    onClick={() => removeImage(idx)}
-                                    className="absolute top-1 right-1 size-6 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                                >
-                                    <span className="material-symbols-outlined text-xs">close</span>
-                                </button>
+                            <div key={idx} className="relative aspect-video rounded-xl overflow-hidden border border-slate-100">
+                                <img src={img} className="w-full h-full object-cover" alt="Lampiran" />
+                                <button onClick={() => setDocumentation(prev => prev.filter((_, i) => i !== idx))} className="absolute top-1 right-1 bg-red-500 text-white rounded-full size-6 flex items-center justify-center shadow-lg"><span className="material-symbols-outlined text-xs">close</span></button>
                             </div>
                         ))}
-                        {bottomDocumentation.length === 0 && (
-                            <div className="col-span-full py-10 text-center border-2 border-dashed border-slate-100 rounded-[2rem]">
-                                <span className="material-symbols-outlined text-4xl text-slate-200">add_photo_alternate</span>
-                                <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest mt-2">Belum ada screenshot rapat</p>
-                            </div>
-                        )}
                     </div>
                 </section>
             </div>
