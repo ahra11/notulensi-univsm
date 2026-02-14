@@ -26,7 +26,8 @@ const MinutesForm: React.FC<MinutesFormProps> = ({ onNavigate, initialData }) =>
     const [recordedAudioUrl, setRecordedAudioUrl] = useState<string | null>(null);
     
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-    const audioChunksRef = useRef<globalThis.Blob[]>([]);
+    // Fix: Use standard browser Blob instead of globalThis.Blob to avoid type mismatches
+    const audioChunksRef = useRef<Blob[]>([]);
 
     const isEditMode = !!initialData;
 
@@ -101,7 +102,8 @@ const MinutesForm: React.FC<MinutesFormProps> = ({ onNavigate, initialData }) =>
             audioChunksRef.current = [];
             mediaRecorder.ondataavailable = (event) => { if (event.data.size > 0) audioChunksRef.current.push(event.data); };
             mediaRecorder.onstop = async () => {
-                const audioBlob = new globalThis.Blob(audioChunksRef.current, { type: 'audio/webm' });
+                // Fix: Use standard browser Blob constructor to avoid type ambiguity
+                const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
                 const url = URL.createObjectURL(audioBlob);
                 setRecordedAudioUrl(url);
                 await transcribeAudio(audioBlob);
@@ -120,7 +122,8 @@ const MinutesForm: React.FC<MinutesFormProps> = ({ onNavigate, initialData }) =>
         }
     };
 
-    const transcribeAudio = async (audioBlob: globalThis.Blob) => {
+    // Fix: Parameter type updated to standard Blob to match browser's FileReader expectations
+    const transcribeAudio = async (audioBlob: Blob) => {
         setIsTranscribing(true);
         setStatusMessage("AI sedang merangkum hasil rapat...");
         try {
@@ -135,7 +138,7 @@ const MinutesForm: React.FC<MinutesFormProps> = ({ onNavigate, initialData }) =>
                     contents: {
                         parts: [
                             { text: "Transkripsikan audio rapat ini ke poin-poin pembahasan formal Bahasa Indonesia." },
-                            { inlineData: { mimeType: 'audio/webm', data: base64Audio } as any }
+                            { inlineData: { mimeType: 'audio/webm', data: base64Audio } }
                         ]
                     }
                 });
