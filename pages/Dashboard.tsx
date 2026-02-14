@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Page, MinutesStatus, Minute } from '../types';
+import { SpreadsheetService } from '../services/spreadsheet';
 
 interface DashboardProps {
     onNavigate: (page: Page, data?: any) => void;
@@ -8,6 +9,8 @@ interface DashboardProps {
 
 const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     const [userName, setUserName] = useState('Pengguna');
+    const [recentMinutes, setRecentMinutes] = useState<Minute[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
         const userJson = localStorage.getItem('currentUser');
@@ -15,50 +18,21 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
             const user = JSON.parse(userJson);
             setUserName(user.name);
         }
+        loadData();
     }, []);
 
-    const recentMinutes: Minute[] = [
-        {
-            id: '1',
-            title: 'Audit Keuangan Semester Ganjil',
-            date: '12 Okt 2023',
-            status: MinutesStatus.SIGNED,
-            updatedAt: '08:30',
-        },
-        {
-            id: '2',
-            title: 'Evaluasi Mahasiswa Berprestasi',
-            date: '11 Okt 2023',
-            status: MinutesStatus.FINALIZED,
-            updatedAt: 'Kemarin',
-        },
-        {
-            id: '3',
-            title: 'Perencanaan Dies Natalis ke-74',
-            date: 'Kemarin',
-            status: MinutesStatus.DRAFT,
-            updatedAt: 'Kemarin',
+    const loadData = async () => {
+        setIsLoading(true);
+        try {
+            const data = await SpreadsheetService.fetchAll();
+            // Ambil 3 notulensi terbaru
+            setRecentMinutes(data.slice(0, 3));
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setIsLoading(false);
         }
-    ];
-
-    const upcomingMeetings = [
-        {
-            id: 'm1',
-            title: 'Rapat Senat Akademik',
-            date: 'Hari Ini',
-            time: '10:00 - 12:30 WIB',
-            location: 'Ruang Sidang Utama',
-            status: 'Mulai dalam 15m'
-        },
-        {
-            id: 'm2',
-            title: 'Review Kurikulum MBKM',
-            date: 'Besok',
-            time: '09:00 - 11:00 WIB',
-            location: 'Zoom Meeting',
-            status: 'Terjadwal'
-        }
-    ];
+    };
 
     return (
         <div className="pb-24 md:pb-10">
@@ -73,10 +47,9 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
                     </div>
                 </div>
                 <div className="flex items-center gap-4">
-                    <div className="hidden lg:flex items-center gap-2 bg-slate-50 px-4 py-2 rounded-xl border border-slate-100">
-                        <span className="material-symbols-outlined text-slate-400 text-lg">search</span>
-                        <input type="text" placeholder="Cari dokumen..." className="bg-transparent border-none text-xs focus:ring-0 w-32 xl:w-48 p-0" />
-                    </div>
+                    <button onClick={loadData} className="p-2 text-slate-400 hover:bg-slate-50 rounded-full transition-colors">
+                        <span className={`material-symbols-outlined ${isLoading ? 'animate-spin' : ''}`}>refresh</span>
+                    </button>
                     <button className="relative p-2 text-slate-400 hover:bg-slate-50 rounded-full transition-colors">
                         <span className="material-symbols-outlined">notifications</span>
                         <span className="absolute top-2.5 right-2.5 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white"></span>
@@ -87,7 +60,9 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
             <div className="max-w-6xl mx-auto">
                 <div className="px-5 md:px-8 pt-6 md:pt-10">
                     <h2 className="text-2xl md:text-3xl font-bold text-slate-900">Halo, {userName}</h2>
-                    <p className="text-slate-500 text-sm md:text-base mt-1">Anda memiliki <span className="text-primary font-bold">{upcomingMeetings.length} rapat</span> terjadwal hari ini.</p>
+                    <p className="text-slate-500 text-sm md:text-base mt-1">
+                        {isLoading ? 'Sedang mensinkronkan data cloud...' : `Anda memiliki ${recentMinutes.length} aktivitas terbaru.`}
+                    </p>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 px-5 md:px-8 mt-8">
@@ -136,35 +111,47 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
                                 <h3 className="text-lg font-bold text-slate-900">Notulensi Terakhir</h3>
                                 <button onClick={() => onNavigate('history')} className="text-[10px] text-primary font-bold uppercase tracking-wider">Tampilkan Semua</button>
                             </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 gap-3">
-                                {recentMinutes.map((item) => (
-                                    <div 
-                                        key={item.id}
-                                        onClick={() => onNavigate('detail', item)}
-                                        className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4 transition-all hover:border-primary/20 hover:shadow-md cursor-pointer group"
-                                    >
-                                        <div className={`size-12 rounded-xl flex items-center justify-center transition-colors ${
-                                            item.status === MinutesStatus.SIGNED ? 'bg-green-50 text-green-600' :
-                                            item.status === MinutesStatus.DRAFT ? 'bg-amber-50 text-amber-600' : 'bg-primary/5 text-primary'
-                                        }`}>
-                                            <span className="material-symbols-outlined">
-                                                {item.status === MinutesStatus.SIGNED ? 'verified_user' :
-                                                 item.status === MinutesStatus.DRAFT ? 'edit_note' : 'task_alt'}
-                                            </span>
+                            
+                            {isLoading ? (
+                                <div className="space-y-3">
+                                    {[1, 2, 3].map(i => <div key={i} className="h-20 bg-slate-100 animate-pulse rounded-2xl"></div>)}
+                                </div>
+                            ) : recentMinutes.length > 0 ? (
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 gap-3">
+                                    {recentMinutes.map((item) => (
+                                        <div 
+                                            key={item.id}
+                                            onClick={() => onNavigate('detail', item)}
+                                            className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4 transition-all hover:border-primary/20 hover:shadow-md cursor-pointer group"
+                                        >
+                                            <div className={`size-12 rounded-xl flex items-center justify-center transition-colors ${
+                                                item.status === MinutesStatus.SIGNED ? 'bg-green-50 text-green-600' :
+                                                item.status === MinutesStatus.DRAFT ? 'bg-amber-50 text-amber-600' : 'bg-primary/5 text-primary'
+                                            }`}>
+                                                <span className="material-symbols-outlined">
+                                                    {item.status === MinutesStatus.SIGNED ? 'verified_user' :
+                                                     item.status === MinutesStatus.DRAFT ? 'edit_note' : 'task_alt'}
+                                                </span>
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <h4 className="font-bold text-sm text-slate-900 truncate">{item.title}</h4>
+                                                <p className="text-[10px] text-slate-400 mt-0.5">{item.date} • {item.updatedAt}</p>
+                                            </div>
+                                            <div className={`px-2.5 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider ${
+                                                item.status === MinutesStatus.SIGNED ? 'bg-green-100 text-green-700' :
+                                                item.status === MinutesStatus.DRAFT ? 'bg-amber-100 text-amber-700' : 'bg-primary/10 text-primary'
+                                            }`}>
+                                                {item.status}
+                                            </div>
                                         </div>
-                                        <div className="flex-1 min-w-0">
-                                            <h4 className="font-bold text-sm text-slate-900 truncate">{item.title}</h4>
-                                            <p className="text-[10px] text-slate-400 mt-0.5">{item.date} • {item.updatedAt}</p>
-                                        </div>
-                                        <div className={`px-2.5 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider ${
-                                            item.status === MinutesStatus.SIGNED ? 'bg-green-100 text-green-700' :
-                                            item.status === MinutesStatus.DRAFT ? 'bg-amber-100 text-amber-700' : 'bg-primary/10 text-primary'
-                                        }`}>
-                                            {item.status}
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="p-10 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                                    <p className="text-slate-400 text-sm font-medium">Belum ada notulensi yang tersimpan.</p>
+                                    <button onClick={() => onNavigate('form')} className="text-primary text-xs font-bold mt-2 hover:underline">Buat Sekarang</button>
+                                </div>
+                            )}
                         </section>
                     </div>
 
@@ -176,33 +163,9 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
                                     <span className="material-symbols-outlined text-lg">calendar_month</span>
                                 </button>
                             </div>
-                            <div className="space-y-4">
-                                {upcomingMeetings.map((meeting) => (
-                                    <div key={meeting.id} className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm relative overflow-hidden transition-all hover:shadow-md group">
-                                        <div className={`absolute top-0 left-0 w-1.5 h-full ${meeting.date === 'Hari Ini' ? 'bg-primary' : 'bg-slate-300'}`}></div>
-                                        <h4 className="font-bold text-sm text-slate-900 mb-3">{meeting.title}</h4>
-                                        <div className="space-y-2">
-                                            <div className="flex items-center gap-2 text-[11px] text-slate-500">
-                                                <span className="material-symbols-outlined text-base">schedule</span>
-                                                {meeting.time}
-                                            </div>
-                                            <div className="flex items-center gap-2 text-[11px] text-slate-500">
-                                                <span className="material-symbols-outlined text-base">location_on</span>
-                                                {meeting.location}
-                                            </div>
-                                        </div>
-                                        <div className="mt-5 flex items-center justify-between">
-                                            <div className="flex -space-x-2">
-                                                {[1, 2, 3].map(i => (
-                                                    <img key={i} className="size-7 rounded-full ring-2 ring-white" src={`https://picsum.photos/seed/${meeting.id + i}/48/48`} alt="Participant" />
-                                                ))}
-                                            </div>
-                                            <button className="px-4 py-2 bg-primary text-white text-[10px] font-bold uppercase rounded-lg shadow-md shadow-primary/10 hover:brightness-110 transition-all">
-                                                Hadir
-                                            </button>
-                                        </div>
-                                    </div>
-                                ))}
+                            <div className="p-6 text-center">
+                                <span className="material-symbols-outlined text-4xl text-slate-200">event_busy</span>
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2">Tidak ada rapat hari ini</p>
                             </div>
                         </section>
                     </div>
