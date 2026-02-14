@@ -1,0 +1,8 @@
+{
+  "name": "SiNotulen_UNIVSM",
+  "description": "A comprehensive digital meeting minutes portal for Universitas Sapta Mandiri, allowing faculty to manage schedules, record minutes, and track historical meeting documentation.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
