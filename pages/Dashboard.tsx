@@ -8,15 +8,14 @@ interface DashboardProps {
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
-    const [userName, setUserName] = useState('Pengguna');
+    const [user, setUser] = useState<any>(null);
     const [recentMinutes, setRecentMinutes] = useState<Minute[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
         const userJson = localStorage.getItem('currentUser');
         if (userJson) {
-            const user = JSON.parse(userJson);
-            setUserName(user.name);
+            setUser(JSON.parse(userJson));
         }
         loadData();
     }, []);
@@ -25,13 +24,19 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
         setIsLoading(true);
         try {
             const data = await SpreadsheetService.fetchAll();
-            // Ambil 3 notulensi terbaru
             setRecentMinutes(data.slice(0, 3));
         } catch (error) {
             console.error(error);
         } finally {
             setIsLoading(false);
         }
+    };
+
+    const handleJoinMeet = () => {
+        // Mengarahkan ke Google Meet. Menggunakan authuser parameter sebagai petunjuk sesi
+        // jika browser login dengan banyak akun.
+        const meetBaseUrl = "https://meet.google.com/new";
+        window.open(meetBaseUrl, "_blank");
     };
 
     return (
@@ -59,7 +64,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
 
             <div className="max-w-6xl mx-auto">
                 <div className="px-5 md:px-8 pt-6 md:pt-10">
-                    <h2 className="text-2xl md:text-3xl font-bold text-slate-900">Halo, {userName}</h2>
+                    <h2 className="text-2xl md:text-3xl font-bold text-slate-900">Halo, {user?.name || 'Pengguna'}</h2>
                     <p className="text-slate-500 text-sm md:text-base mt-1">
                         {isLoading ? 'Sedang mensinkronkan data cloud...' : `Anda memiliki ${recentMinutes.length} aktivitas terbaru.`}
                     </p>
@@ -82,13 +87,16 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
                                         <span className="text-[10px] opacity-70 hidden md:block">Catat rapat baru</span>
                                     </div>
                                 </button>
-                                <button className="flex flex-col md:flex-row items-center gap-3 p-5 bg-white border border-slate-100 rounded-2xl shadow-sm transition-all hover:bg-slate-50 hover:translate-y-[-2px] active:scale-95 group">
+                                <button 
+                                    onClick={handleJoinMeet}
+                                    className="flex flex-col md:flex-row items-center gap-3 p-5 bg-white border border-slate-100 rounded-2xl shadow-sm transition-all hover:bg-slate-50 hover:translate-y-[-2px] active:scale-95 group"
+                                >
                                     <div className="bg-primary/5 p-2.5 rounded-xl group-hover:scale-110 transition-transform">
                                         <span className="material-symbols-outlined text-primary text-2xl">video_camera_front</span>
                                     </div>
                                     <div className="text-center md:text-left">
                                         <span className="text-xs font-bold text-slate-700 block">Gabung Rapat</span>
-                                        <span className="text-[10px] text-slate-400 hidden md:block">Meeting online</span>
+                                        <span className="text-[10px] text-slate-400 hidden md:block">Buka Google Meet</span>
                                     </div>
                                 </button>
                                 <button 

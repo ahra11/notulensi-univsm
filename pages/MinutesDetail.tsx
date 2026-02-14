@@ -59,6 +59,12 @@ const MinutesDetail: React.FC<MinutesDetailProps> = ({ minute, onNavigate }) => 
         }
     };
 
+    const handleOpenMeet = () => {
+        if (minute.meetLink) {
+            window.open(minute.meetLink, "_blank");
+        }
+    };
+
     return (
         <div className="pb-32 md:pb-10 bg-white min-h-screen">
             <header className="sticky top-0 z-50 bg-white border-b border-slate-100 px-4 md:px-8 py-4 flex items-center justify-between no-print">
@@ -72,6 +78,15 @@ const MinutesDetail: React.FC<MinutesDetailProps> = ({ minute, onNavigate }) => 
                     </div>
                 </div>
                 <div className="flex gap-2">
+                    {minute.meetLink && (
+                        <button 
+                            onClick={handleOpenMeet}
+                            className="flex items-center gap-2 px-5 py-2.5 bg-blue-50 text-blue-600 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-blue-100 transition-all border border-blue-100"
+                        >
+                            <span className="material-symbols-outlined text-lg">videocam</span>
+                            Buka Meet
+                        </button>
+                    )}
                     {user?.isPimpinan && minute.status !== MinutesStatus.SIGNED && (
                         <button 
                             onClick={handleVerify}
@@ -88,10 +103,9 @@ const MinutesDetail: React.FC<MinutesDetailProps> = ({ minute, onNavigate }) => 
                 </div>
             </header>
 
-            {/* KOP SURAT RESMI - TAMPIL SAAT PRINT */}
+            {/* KOP SURAT RESMI */}
             <div className="hidden print:block mb-8 border-b-4 border-black pb-6">
                 <div className="flex items-center gap-8 mb-4">
-                    {/* Mengatur ukuran logo khusus untuk cetakan kop surat agar lebih besar */}
                     <div className="h-28 w-auto">
                         <Logo className="h-full" bw={true} />
                     </div>
@@ -119,7 +133,7 @@ const MinutesDetail: React.FC<MinutesDetailProps> = ({ minute, onNavigate }) => 
                                 {minute.status}
                             </div>
                         </div>
-                        <div className="flex gap-6 text-xs font-bold text-slate-500 uppercase tracking-widest">
+                        <div className="flex flex-wrap gap-6 text-xs font-bold text-slate-500 uppercase tracking-widest">
                             <div className="flex items-center gap-2">
                                 <span className="material-symbols-outlined text-lg text-primary print:hidden">event_available</span>
                                 <span>{minute.date}</span>
@@ -128,6 +142,12 @@ const MinutesDetail: React.FC<MinutesDetailProps> = ({ minute, onNavigate }) => 
                                 <span className="material-symbols-outlined text-lg text-primary print:hidden">location_on</span>
                                 <span>{minute.location || 'Kampus Utama'}</span>
                             </div>
+                            {minute.meetLink && (
+                                <div className="flex items-center gap-2 text-blue-600 print:hidden">
+                                    <span className="material-symbols-outlined text-lg">videocam</span>
+                                    <span className="lowercase font-medium">{minute.meetLink}</span>
+                                </div>
+                            )}
                         </div>
                     </section>
 

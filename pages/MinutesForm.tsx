@@ -14,6 +14,7 @@ const MinutesForm: React.FC<MinutesFormProps> = ({ onNavigate, initialData }) =>
     const [location, setLocation] = useState(initialData?.location || "");
     const [date, setDate] = useState(initialData?.date || "");
     const [notulensi, setNotulensi] = useState(initialData?.content || "");
+    const [meetLink, setMeetLink] = useState(initialData?.meetLink || "");
     
     const [isRecording, setIsRecording] = useState(false);
     const [isTranscribing, setIsTranscribing] = useState(false);
@@ -100,6 +101,7 @@ const MinutesForm: React.FC<MinutesFormProps> = ({ onNavigate, initialData }) =>
             location,
             date,
             content: notulensi,
+            meetLink,
             submittedBy: initialData?.submittedBy || currentUser.name || "Anonim",
             updatedAt: new Date().toLocaleString('id-ID'),
             status: initialData?.status || 'DRAFT'
@@ -167,6 +169,13 @@ const MinutesForm: React.FC<MinutesFormProps> = ({ onNavigate, initialData }) =>
                         <div className="space-y-1.5">
                             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Waktu Pelaksanaan</label>
                             <input value={date} onChange={e => setDate(e.target.value)} className="w-full h-14 rounded-2xl border-slate-100 focus:ring-primary/20 focus:border-primary text-sm bg-slate-50/50" type="date" />
+                        </div>
+                        <div className="space-y-1.5 md:col-span-2">
+                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Tautan Google Meet (Opsional)</label>
+                            <div className="relative">
+                                <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-primary/40 text-lg">link</span>
+                                <input value={meetLink} onChange={e => setMeetLink(e.target.value)} className="w-full h-14 pl-12 rounded-2xl border-slate-100 focus:ring-primary/20 focus:border-primary text-sm bg-slate-50/50" placeholder="https://meet.google.com/abc-defg-hij" type="url" />
+                            </div>
                         </div>
                     </div>
                 </section>

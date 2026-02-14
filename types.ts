@@ -35,6 +35,7 @@ export interface Minute {
     content?: string;
     documentation?: string[];
     submittedBy?: string;
+    meetLink?: string; // Properti baru untuk tautan Google Meet
 }
 
 export type Page = 'dashboard' | 'history' | 'form' | 'detail' | 'profile' | 'login' | 'register' | 'reports';
