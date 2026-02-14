@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Page, Minute } from '../types';
-import { GoogleGenAI, Blob as GenerativeBlob } from "@google/genai";
+import { GoogleGenAI } from "@google/genai";
 import { SpreadsheetService } from '../services/spreadsheet';
 
 interface MinutesFormProps {
@@ -15,7 +15,7 @@ const MinutesForm: React.FC<MinutesFormProps> = ({ onNavigate, initialData }) =>
     const [date, setDate] = useState(initialData?.date || "");
     const [notulensi, setNotulensi] = useState(initialData?.content || "");
     const [meetLink, setMeetLink] = useState(initialData?.meetLink || "");
-    const [documentation, setDocumentation] = useState<string[]>(initialData?.documentation || []);
+    const [bottomDocumentation, setDocumentation] = useState<string[]>(initialData?.documentation || []);
     
     const [isRecording, setIsRecording] = useState(false);
     const [isTranscribing, setIsTranscribing] = useState(false);
@@ -59,9 +59,10 @@ const MinutesForm: React.FC<MinutesFormProps> = ({ onNavigate, initialData }) =>
         setStatusMessage("Menyiapkan suara AI...");
         try {
             const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+            // Simplified contents structure as per guidelines
             const response = await ai.models.generateContent({
                 model: "gemini-2.5-flash-preview-tts",
-                contents: [{ parts: [{ text: `Bacakan dengan perlahan: ${notulensi.substring(0, 1000)}` }] }],
+                contents: { parts: [{ text: `Bacakan dengan perlahan: ${notulensi.substring(0, 1000)}` }] },
                 config: {
                     responseModalities: ["AUDIO"],
                     speechConfig: {
@@ -147,16 +148,15 @@ const MinutesForm: React.FC<MinutesFormProps> = ({ onNavigate, initialData }) =>
                 
                 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
                 
-                // Use array for contents and provide correct structure for parts
+                // Use simplified Content structure and remove unnecessary type cast that caused naming collision with global Blob
                 const response = await ai.models.generateContent({
                     model: 'gemini-3-flash-preview',
-                    contents: [{
+                    contents: {
                         parts: [
                             { text: "Transkripsikan audio rapat ini ke teks Bahasa Indonesia formal secara instan. Langsung ke inti pembicaraan." },
-                            // Use GenerativeBlob type to resolve conflict with browser's global Blob type
-                            { inlineData: { mimeType: 'audio/webm', data: base64Audio } as GenerativeBlob }
+                            { inlineData: { mimeType: 'audio/webm', data: base64Audio } }
                         ]
-                    }]
+                    }
                 });
                 
                 const text = response.text || "";
@@ -207,7 +207,7 @@ const MinutesForm: React.FC<MinutesFormProps> = ({ onNavigate, initialData }) =>
             date,
             content: notulensi,
             meetLink,
-            documentation,
+            documentation: bottomDocumentation,
             submittedBy: initialData?.submittedBy || currentUser.name || "Anonim",
             updatedAt: new Date().toLocaleString('id-ID'),
             status: initialData?.status || 'DRAFT'
@@ -341,7 +341,7 @@ const MinutesForm: React.FC<MinutesFormProps> = ({ onNavigate, initialData }) =>
                     </div>
 
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                        {documentation.map((img, idx) => (
+                        {bottomDocumentation.map((img, idx) => (
                             <div key={idx} className="relative group aspect-video rounded-xl overflow-hidden border border-slate-100 shadow-sm">
                                 <img src={img} alt={`dok-${idx}`} className="w-full h-full object-cover" />
                                 <button 
@@ -352,7 +352,7 @@ const MinutesForm: React.FC<MinutesFormProps> = ({ onNavigate, initialData }) =>
                                 </button>
                             </div>
                         ))}
-                        {documentation.length === 0 && (
+                        {bottomDocumentation.length === 0 && (
                             <div className="col-span-full py-10 text-center border-2 border-dashed border-slate-100 rounded-[2rem]">
                                 <span className="material-symbols-outlined text-4xl text-slate-200">add_photo_alternate</span>
                                 <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest mt-2">Belum ada screenshot rapat</p>
