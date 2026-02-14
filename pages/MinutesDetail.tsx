@@ -14,6 +14,7 @@ const MinutesDetail: React.FC<MinutesDetailProps> = ({ minute, onNavigate }) => 
     const [aiSummary, setAiSummary] = useState<string | null>(null);
     const [isGenerating, setIsGenerating] = useState(false);
     const [isVerifying, setIsVerifying] = useState(false);
+    const [isSpeaking, setIsSpeaking] = useState(false);
     const [user, setUser] = useState<any>(null);
 
     useEffect(() => {
@@ -40,6 +41,66 @@ const MinutesDetail: React.FC<MinutesDetailProps> = ({ minute, onNavigate }) => 
             console.error(error);
         } finally {
             setIsGenerating(false);
+        }
+    };
+
+    const decodeBase64 = (base64: string) => {
+        const binaryString = atob(base64);
+        const len = binaryString.length;
+        const bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+        }
+        return bytes;
+    };
+
+    const decodeAudioData = async (data: Uint8Array, ctx: AudioContext, sampleRate: number, numChannels: number): Promise<AudioBuffer> => {
+        const dataInt16 = new Int16Array(data.buffer);
+        const frameCount = dataInt16.length / numChannels;
+        const buffer = ctx.createBuffer(numChannels, frameCount, sampleRate);
+        for (let channel = 0; channel < numChannels; channel++) {
+            const channelData = buffer.getChannelData(channel);
+            for (let i = 0; i < frameCount; i++) {
+                channelData[i] = dataInt16[i * numChannels + channel] / 32768.0;
+            }
+        }
+        return buffer;
+    };
+
+    const handleTTS = async () => {
+        if (isSpeaking) return;
+        setIsSpeaking(true);
+        try {
+            const textToRead = aiSummary || discussionPoints.join('. ');
+            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+            const response = await ai.models.generateContent({
+                model: "gemini-2.5-flash-preview-tts",
+                contents: [{ parts: [{ text: `Bacakan notulensi berikut dengan tenang: ${textToRead}` }] }],
+                config: {
+                    responseModalities: ["AUDIO"],
+                    speechConfig: {
+                        voiceConfig: {
+                            prebuiltVoiceConfig: { voiceName: 'Kore' },
+                        },
+                    },
+                },
+            });
+
+            const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+            if (base64Audio) {
+                const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+                const audioBuffer = await decodeAudioData(decodeBase64(base64Audio), audioContext, 24000, 1);
+                const source = audioContext.createBufferSource();
+                source.buffer = audioBuffer;
+                source.connect(audioContext.destination);
+                source.onended = () => setIsSpeaking(false);
+                source.start();
+            } else {
+                setIsSpeaking(false);
+            }
+        } catch (error) {
+            console.error("TTS Error:", error);
+            setIsSpeaking(false);
         }
     };
 
@@ -78,6 +139,14 @@ const MinutesDetail: React.FC<MinutesDetailProps> = ({ minute, onNavigate }) => 
                     </div>
                 </div>
                 <div className="flex gap-2">
+                    <button 
+                        onClick={handleTTS}
+                        disabled={isSpeaking}
+                        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest transition-all border ${isSpeaking ? 'bg-slate-100 text-slate-400 border-slate-200' : 'bg-amber-50 text-amber-600 border-amber-100 hover:bg-amber-100'}`}
+                    >
+                        <span className={`material-symbols-outlined text-lg ${isSpeaking ? 'animate-pulse' : ''}`}>volume_up</span>
+                        {isSpeaking ? 'Memutar...' : 'Dengarkan'}
+                    </button>
                     {minute.meetLink && (
                         <button 
                             onClick={handleOpenMeet}
@@ -156,11 +225,13 @@ const MinutesDetail: React.FC<MinutesDetailProps> = ({ minute, onNavigate }) => 
                             <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-primary flex items-center gap-2">
                                 <span className="material-symbols-outlined">auto_awesome</span> Ringkasan AI
                             </h3>
-                            {!aiSummary && (
-                                <button onClick={handleGenerateAISummary} disabled={isGenerating} className="px-4 py-1.5 bg-primary text-white text-[10px] font-bold uppercase rounded-lg">
-                                    {isGenerating ? 'Membuat...' : 'Buat Ringkasan'}
-                                </button>
-                            )}
+                            <div className="flex items-center gap-2">
+                                {!aiSummary && (
+                                    <button onClick={handleGenerateAISummary} disabled={isGenerating} className="px-4 py-1.5 bg-primary text-white text-[10px] font-bold uppercase rounded-lg">
+                                        {isGenerating ? 'Membuat...' : 'Buat Ringkasan'}
+                                    </button>
+                                )}
+                            </div>
                         </div>
                         {aiSummary && <p className="text-slate-700 leading-relaxed italic">"{aiSummary}"</p>}
                     </section>

@@ -20,6 +20,7 @@ const MinutesForm: React.FC<MinutesFormProps> = ({ onNavigate, initialData }) =>
     const [isRecording, setIsRecording] = useState(false);
     const [isTranscribing, setIsTranscribing] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isSpeaking, setIsSpeaking] = useState(false);
     const [statusMessage, setStatusMessage] = useState("");
     const [recordedAudioUrl, setRecordedAudioUrl] = useState<string | null>(null);
     
@@ -27,6 +28,72 @@ const MinutesForm: React.FC<MinutesFormProps> = ({ onNavigate, initialData }) =>
     const audioChunksRef = useRef<Blob[]>([]);
 
     const isEditMode = !!initialData;
+
+    const decodeBase64 = (base64: string) => {
+        const binaryString = atob(base64);
+        const len = binaryString.length;
+        const bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+        }
+        return bytes;
+    };
+
+    const decodeAudioData = async (data: Uint8Array, ctx: AudioContext, sampleRate: number, numChannels: number): Promise<AudioBuffer> => {
+        const dataInt16 = new Int16Array(data.buffer);
+        const frameCount = dataInt16.length / numChannels;
+        const buffer = ctx.createBuffer(numChannels, frameCount, sampleRate);
+        for (let channel = 0; channel < numChannels; channel++) {
+            const channelData = buffer.getChannelData(channel);
+            for (let i = 0; i < frameCount; i++) {
+                channelData[i] = dataInt16[i * numChannels + channel] / 32768.0;
+            }
+        }
+        return buffer;
+    };
+
+    const handleTTS = async () => {
+        if (!notulensi || isSpeaking) return;
+        setIsSpeaking(true);
+        setStatusMessage("Menyiapkan suara AI...");
+        try {
+            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+            const response = await ai.models.generateContent({
+                model: "gemini-2.5-flash-preview-tts",
+                contents: [{ parts: [{ text: `Bacakan dengan perlahan: ${notulensi.substring(0, 1000)}` }] }],
+                config: {
+                    responseModalities: ["AUDIO"],
+                    speechConfig: {
+                        voiceConfig: {
+                            prebuiltVoiceConfig: { voiceName: 'Kore' },
+                        },
+                    },
+                },
+            });
+
+            const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+            if (base64Audio) {
+                const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+                const audioBuffer = await decodeAudioData(decodeBase64(base64Audio), audioContext, 24000, 1);
+                const source = audioContext.createBufferSource();
+                source.buffer = audioBuffer;
+                source.connect(audioContext.destination);
+                source.onended = () => {
+                    setIsSpeaking(false);
+                    setStatusMessage("");
+                };
+                source.start();
+                setStatusMessage("Memutar teks...");
+            } else {
+                setIsSpeaking(false);
+                setStatusMessage("");
+            }
+        } catch (error) {
+            console.error("TTS Error:", error);
+            setIsSpeaking(false);
+            setStatusMessage("Gagal memutar suara.");
+        }
+    };
 
     const startRecording = async () => {
         try {
@@ -73,7 +140,6 @@ const MinutesForm: React.FC<MinutesFormProps> = ({ onNavigate, initialData }) =>
                 const base64Audio = (reader.result as string).split(',')[1];
                 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
                 
-                // Gunakan prompt yang lebih singkat untuk kecepatan
                 const response = await ai.models.generateContent({
                     model: 'gemini-3-flash-preview',
                     contents: {
@@ -216,6 +282,16 @@ const MinutesForm: React.FC<MinutesFormProps> = ({ onNavigate, initialData }) =>
                             <span className="material-symbols-outlined text-base">description</span> Konten Notulensi
                         </h2>
                         <div className="flex items-center gap-2">
+                            <button 
+                                type="button"
+                                onClick={handleTTS}
+                                disabled={isSpeaking || !notulensi}
+                                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${isSpeaking ? 'bg-amber-500 text-white animate-pulse' : 'bg-amber-50 text-amber-600 hover:bg-amber-100'}`}
+                            >
+                                <span className="material-symbols-outlined text-lg">{isSpeaking ? 'volume_up' : 'play_circle'}</span>
+                                {isSpeaking ? 'Membaca...' : 'Cek Suara'}
+                            </button>
+                            <div className="h-6 w-px bg-slate-100 mx-1"></div>
                             {isTranscribing && <div className="size-3 border-2 border-primary/30 border-t-primary rounded-full animate-spin"></div>}
                             <button 
                                 type="button"
@@ -248,35 +324,4 @@ const MinutesForm: React.FC<MinutesFormProps> = ({ onNavigate, initialData }) =>
                         <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary/40 flex items-center gap-2">
                             <span className="material-symbols-outlined text-base">photo_library</span> Screenshot & Dokumentasi
                         </h2>
-                        <label className="cursor-pointer bg-primary/5 text-primary px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-primary/10 transition-colors">
-                            <span className="material-symbols-outlined text-sm align-middle mr-1">upload</span> Unggah Gambar
-                            <input type="file" accept="image/*" multiple onChange={handleFileUpload} className="hidden" />
-                        </label>
-                    </div>
-
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                        {documentation.map((img, idx) => (
-                            <div key={idx} className="relative group aspect-video rounded-xl overflow-hidden border border-slate-100 shadow-sm">
-                                <img src={img} alt={`dok-${idx}`} className="w-full h-full object-cover" />
-                                <button 
-                                    onClick={() => removeImage(idx)}
-                                    className="absolute top-1 right-1 size-6 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                                >
-                                    <span className="material-symbols-outlined text-xs">close</span>
-                                </button>
-                            </div>
-                        ))}
-                        {documentation.length === 0 && (
-                            <div className="col-span-full py-10 text-center border-2 border-dashed border-slate-100 rounded-[2rem]">
-                                <span className="material-symbols-outlined text-4xl text-slate-200">add_photo_alternate</span>
-                                <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest mt-2">Belum ada screenshot rapat</p>
-                            </div>
-                        )}
-                    </div>
-                </section>
-            </div>
-        </div>
-    );
-};
-
-export default MinutesForm;
+                        <label className="cursor-pointer
