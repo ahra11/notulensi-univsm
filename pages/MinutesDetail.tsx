@@ -183,6 +183,19 @@ const MinutesDetail: React.FC<MinutesDetailProps> = ({ minute, onNavigate }) => 
                         </div>
                     </section>
 
+                    {minute.documentation && minute.documentation.length > 0 && (
+                        <section className="no-print">
+                            <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400 mb-6">Dokumentasi & Screenshot:</h3>
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                                {minute.documentation.map((img, idx) => (
+                                    <div key={idx} className="aspect-video rounded-2xl overflow-hidden border border-slate-100 shadow-sm">
+                                        <img src={img} alt="doc" className="w-full h-full object-cover hover:scale-105 transition-transform cursor-zoom-in" onClick={() => window.open(img, '_blank')} />
+                                    </div>
+                                ))}
+                            </div>
+                        </section>
+                    )}
+
                     <section className="hidden print:grid grid-cols-2 gap-20 mt-20 pt-10">
                         <div className="text-center">
                             <p className="text-xs mb-16 uppercase font-bold tracking-widest">Tanda Tangan Pimpinan,</p>
