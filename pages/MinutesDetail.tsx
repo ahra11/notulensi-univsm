@@ -34,16 +34,9 @@ const MinutesDetail: React.FC<MinutesDetailProps> = ({ minute, onNavigate }) => 
                 <div className="flex items-start justify-between pb-4 mb-6 border-b-[1.5pt] border-black border-double">
                     <div className="flex gap-4 items-start w-1/3">
                         <img src={logoBootUrl} alt="Logo" className="h-16 w-auto object-contain grayscale" />
-                        <div className="flex flex-col">
-                            <h2 className="text-sm font-black leading-none">UNIVSM</h2>
-                            <p className="text-[7pt] font-bold uppercase tracking-tighter mt-0.5">Universitas</p>
-                            <p className="text-[7pt] font-bold uppercase tracking-tighter leading-none">Sapta Mandiri</p>
-                            <p className="text-[5pt] font-medium leading-none mt-1 opacity-70">KNOWLEDGE, INTEGRITY, & INNOVATION</p>
-                        </div>
                     </div>
                     <div className="text-right flex-1">
                         <h1 className="text-sm font-black uppercase tracking-tight">Universitas Sapta Mandiri</h1>
-                        <p className="text-[8pt] font-bold uppercase tracking-widest mt-0.5">BIRO ADMINISTRASI UMUM DAN AKADEMIK</p>
                         <p className="text-[7pt] font-medium leading-tight italic mt-1">
                             Jalan A. Yani Km 1,5 Depan, Lingsir, Kec. Paringin Selatan,<br/>
                             Kabupaten Balangan, Kalimantan Selatan 71618 | Email: info@univsm.ac.id
