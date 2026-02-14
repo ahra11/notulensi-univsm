@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Page, Minute } from '../types';
 import { GoogleGenAI } from "@google/genai";
@@ -25,7 +24,8 @@ const MinutesForm: React.FC<MinutesFormProps> = ({ onNavigate, initialData }) =>
     const [recordedAudioUrl, setRecordedAudioUrl] = useState<string | null>(null);
     
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-    const audioChunksRef = useRef<Blob[]>([]);
+    // Explicitly use globalThis.Blob to avoid collision with @google/genai's internal Blob type
+    const audioChunksRef = useRef<globalThis.Blob[]>([]);
 
     const isEditMode = !!initialData;
 
@@ -107,7 +107,7 @@ const MinutesForm: React.FC<MinutesFormProps> = ({ onNavigate, initialData }) =>
             };
             
             mediaRecorder.onstop = async () => {
-                const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+                const audioBlob = new globalThis.Blob(audioChunksRef.current, { type: 'audio/webm' });
                 const url = URL.createObjectURL(audioBlob);
                 setRecordedAudioUrl(url);
                 await transcribeAudio(audioBlob);
@@ -130,24 +130,32 @@ const MinutesForm: React.FC<MinutesFormProps> = ({ onNavigate, initialData }) =>
         }
     };
 
-    const transcribeAudio = async (audioBlob: Blob) => {
+    // Explicitly use globalThis.Blob for the parameter to avoid collision with @google/genai's Blob
+    const transcribeAudio = async (audioBlob: globalThis.Blob) => {
         setIsTranscribing(true);
         setStatusMessage("AI sedang memproses suara (Flash Mode)...");
         try {
             const reader = new FileReader();
             reader.readAsDataURL(audioBlob);
             reader.onloadend = async () => {
-                const base64Audio = (reader.result as string).split(',')[1];
+                // Ensure result is string and split it safely to avoid unknown type issues
+                const readerResult = reader.result as string;
+                if (!readerResult) throw new Error("Gagal membaca audio data");
+                
+                const base64Audio = readerResult.split(',')[1] || "";
+                
                 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
                 
+                // Use array for contents and cast inlineData to any to bypass Blob naming conflict
                 const response = await ai.models.generateContent({
                     model: 'gemini-3-flash-preview',
-                    contents: {
+                    contents: [{
                         parts: [
                             { text: "Transkripsikan audio rapat ini ke teks Bahasa Indonesia formal secara instan. Langsung ke inti pembicaraan." },
-                            { inlineData: { mimeType: 'audio/webm', data: base64Audio } }
+                            // Cast inlineData object as any to resolve conflict with browser's global Blob type
+                            { inlineData: { mimeType: 'audio/webm', data: base64Audio } as any }
                         ]
-                    }
+                    }]
                 });
                 
                 const text = response.text || "";
@@ -157,6 +165,7 @@ const MinutesForm: React.FC<MinutesFormProps> = ({ onNavigate, initialData }) =>
                 setTimeout(() => setStatusMessage(""), 2000);
             };
         } catch (error) {
+            console.error("Transcription error:", error);
             setIsTranscribing(false);
             setStatusMessage("Gagal transkripsi AI.");
         }
@@ -324,4 +333,35 @@ const MinutesForm: React.FC<MinutesFormProps> = ({ onNavigate, initialData }) =>
                         <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary/40 flex items-center gap-2">
                             <span className="material-symbols-outlined text-base">photo_library</span> Screenshot & Dokumentasi
                         </h2>
-                        <label className="cursor-pointer
+                        <label className="cursor-pointer bg-primary/5 text-primary px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-primary/10 transition-colors">
+                            <span className="material-symbols-outlined text-sm align-middle mr-1">upload</span> Unggah Gambar
+                            <input type="file" accept="image/*" multiple onChange={handleFileUpload} className="hidden" />
+                        </label>
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                        {documentation.map((img, idx) => (
+                            <div key={idx} className="relative group aspect-video rounded-xl overflow-hidden border border-slate-100 shadow-sm">
+                                <img src={img} alt={`dok-${idx}`} className="w-full h-full object-cover" />
+                                <button 
+                                    onClick={() => removeImage(idx)}
+                                    className="absolute top-1 right-1 size-6 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                >
+                                    <span className="material-symbols-outlined text-xs">close</span>
+                                </button>
+                            </div>
+                        ))}
+                        {documentation.length === 0 && (
+                            <div className="col-span-full py-10 text-center border-2 border-dashed border-slate-100 rounded-[2rem]">
+                                <span className="material-symbols-outlined text-4xl text-slate-200">add_photo_alternate</span>
+                                <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest mt-2">Belum ada screenshot rapat</p>
+                            </div>
+                        )}
+                    </div>
+                </section>
+            </div>
+        </div>
+    );
+};
+
+export default MinutesForm;

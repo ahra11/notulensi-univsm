@@ -27,23 +27,6 @@ const MinutesDetail: React.FC<MinutesDetailProps> = ({ minute, onNavigate }) => 
         ? minute.content.split('\n').filter(p => p.trim())
         : (minute.content || []);
 
-    const handleGenerateAISummary = async () => {
-        setIsGenerating(true);
-        try {
-            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-            const prompt = `Buatkan ringkasan eksekutif formal dalam 3 poin untuk rapat: ${meetingTitle}. Isi pembahasan: ${discussionPoints.join(', ')}`;
-            const response = await ai.models.generateContent({
-                model: 'gemini-3-flash-preview',
-                contents: prompt,
-            });
-            setAiSummary(response.text || "Ringkasan berhasil dibuat.");
-        } catch (error) {
-            console.error(error);
-        } finally {
-            setIsGenerating(false);
-        }
-    };
-
     const decodeBase64 = (base64: string) => {
         const binaryString = atob(base64);
         const len = binaryString.length;
@@ -104,196 +87,197 @@ const MinutesDetail: React.FC<MinutesDetailProps> = ({ minute, onNavigate }) => 
         }
     };
 
+    const handleGenerateAISummary = async () => {
+        setIsGenerating(true);
+        try {
+            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+            const prompt = `Buatkan ringkasan eksekutif formal dalam 3 poin untuk rapat: ${meetingTitle}. Isi pembahasan: ${discussionPoints.join(', ')}`;
+            const response = await ai.models.generateContent({
+                model: 'gemini-3-flash-preview',
+                contents: prompt,
+            });
+            setAiSummary(response.text || "Ringkasan berhasil dibuat.");
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setIsGenerating(false);
+        }
+    };
+
     const handleVerify = async () => {
         if (!user?.isPimpinan) return;
-        if (!confirm("Apakah Anda yakin ingin melakukan verifikasi digital pada notulensi ini?")) return;
+        if (!confirm("Konfirmasi Verifikasi Digital?")) return;
 
         setIsVerifying(true);
         try {
             await SpreadsheetService.verifyMinute(minute.id, user.name);
-            alert("Verifikasi Berhasil! Dokumen telah tertandatangani secara sah.");
             onNavigate('history');
         } catch (error) {
-            alert("Gagal melakukan verifikasi.");
+            alert("Gagal memverifikasi.");
         } finally {
             setIsVerifying(false);
         }
     };
 
-    const handleOpenMeet = () => {
-        if (minute.meetLink) {
-            window.open(minute.meetLink, "_blank");
-        }
-    };
-
     return (
-        <div className="pb-32 md:pb-10 bg-white min-h-screen">
-            <header className="sticky top-0 z-50 bg-white border-b border-slate-100 px-4 md:px-8 py-4 flex items-center justify-between no-print">
-                <div className="flex items-center gap-3">
-                    <button onClick={() => onNavigate('history')} className="flex items-center justify-center size-10 rounded-full hover:bg-slate-50 transition-colors">
-                        <span className="material-symbols-outlined text-slate-900">arrow_back</span>
+        <div className="min-h-screen bg-slate-50/30 print:bg-white pb-20">
+            {/* Action Header - Hidden on Print */}
+            <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-100 px-4 md:px-8 py-4 flex items-center justify-between no-print shadow-sm">
+                <div className="flex items-center gap-4">
+                    <button onClick={() => onNavigate('history')} className="size-10 flex items-center justify-center rounded-full hover:bg-slate-50 text-slate-600 transition-colors">
+                        <span className="material-symbols-outlined">arrow_back</span>
                     </button>
                     <div>
-                        <h1 className="text-sm font-bold">Detail Dokumen</h1>
-                        <p className="text-[9px] text-primary font-bold uppercase tracking-widest">Arsip Digital UNIVSM</p>
+                        <h1 className="text-sm font-bold text-slate-900">Detail & Cetak Notulensi</h1>
+                        <p className="text-[10px] text-primary font-bold uppercase tracking-widest">SiNotulen Digital System</p>
                     </div>
                 </div>
                 <div className="flex gap-2">
-                    <button 
-                        onClick={handleTTS}
-                        disabled={isSpeaking}
-                        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest transition-all border ${isSpeaking ? 'bg-slate-100 text-slate-400 border-slate-200' : 'bg-amber-50 text-amber-600 border-amber-100 hover:bg-amber-100'}`}
-                    >
+                    <button onClick={handleTTS} disabled={isSpeaking} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${isSpeaking ? 'bg-amber-100 text-amber-700' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'}`}>
                         <span className={`material-symbols-outlined text-lg ${isSpeaking ? 'animate-pulse' : ''}`}>volume_up</span>
-                        {isSpeaking ? 'Memutar...' : 'Dengarkan'}
+                        {isSpeaking ? 'Membaca...' : 'Dengarkan'}
                     </button>
-                    {minute.meetLink && (
-                        <button 
-                            onClick={handleOpenMeet}
-                            className="flex items-center gap-2 px-5 py-2.5 bg-blue-50 text-blue-600 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-blue-100 transition-all border border-blue-100"
-                        >
-                            <span className="material-symbols-outlined text-lg">videocam</span>
-                            Buka Meet
-                        </button>
-                    )}
                     {user?.isPimpinan && minute.status !== MinutesStatus.SIGNED && (
-                        <button 
-                            onClick={handleVerify}
-                            disabled={isVerifying}
-                            className="flex items-center gap-2 px-5 py-2.5 bg-green-600 text-white rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-green-700 transition-all shadow-lg shadow-green-200"
-                        >
-                            {isVerifying ? <div className="size-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> : <span className="material-symbols-outlined text-lg">verified</span>}
-                            Verifikasi Sah
+                        <button onClick={handleVerify} disabled={isVerifying} className="bg-green-600 text-white px-5 py-2 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-green-700 shadow-lg shadow-green-200">
+                            {isVerifying ? 'Proses...' : 'Verifikasi'}
                         </button>
                     )}
-                    <button onClick={() => window.print()} className="flex items-center gap-2 px-5 py-2.5 bg-slate-900 text-white rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-black transition-all shadow-lg shadow-black/10">
-                        <span className="material-symbols-outlined text-lg">print</span> Cetak
+                    <button onClick={() => window.print()} className="bg-primary text-white px-5 py-2 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-slate-900 shadow-lg shadow-primary/20 flex items-center gap-2">
+                        <span className="material-symbols-outlined text-lg">print</span> Cetak PDF
                     </button>
                 </div>
             </header>
 
-            {/* KOP SURAT RESMI */}
-            <div className="hidden print:block mb-8 border-b-4 border-black pb-6">
-                <div className="flex items-center gap-8 mb-4">
-                    <div className="h-28 w-auto">
-                        <Logo className="h-full" bw={true} />
+            {/* Document Content */}
+            <div className="max-w-4xl mx-auto bg-white shadow-2xl shadow-primary/5 mt-8 md:my-12 p-8 md:p-16 print:m-0 print:p-0 print:shadow-none">
+                
+                {/* Official Letterhead (Kop Surat) */}
+                <div className="flex items-center gap-6 pb-6 mb-8 border-b-[3px] border-black border-double">
+                    <div className="size-24 shrink-0">
+                        <Logo className="h-20" bw={true} />
                     </div>
-                    <div className="text-center flex-1 pr-32">
-                        <h1 className="text-2xl font-black uppercase tracking-tight">Universitas Sapta Mandiri</h1>
-                        <p className="text-xs font-bold tracking-[0.2em] mb-1">BIRO ADMINISTRASI UMUM DAN KEPEGAWAIAN</p>
-                        <p className="text-[10px] font-medium italic">
+                    <div className="text-center flex-1 pr-12">
+                        <h2 className="text-xl font-black uppercase leading-tight">Universitas Sapta Mandiri</h2>
+                        <p className="text-[10px] font-bold tracking-[0.2em] mb-1">BIRO ADMINISTRASI UMUM DAN AKADEMIK</p>
+                        <p className="text-[9px] font-medium leading-relaxed italic">
                             Jalan A. Yani Km 1,5 Depan, Lingsir, Kec. Paringin Selatan, <br/>
-                            Kabupaten Balangan, Kalimantan Selatan 71618
+                            Kabupaten Balangan, Kalimantan Selatan 71618 | Email: info@univsm.ac.id
                         </p>
                     </div>
                 </div>
-            </div>
 
-            <div className="max-w-5xl mx-auto px-6 md:px-12 py-10 print:py-0">
-                <div className="space-y-10">
-                    <section className="border-b border-slate-100 pb-8 print:border-none">
-                        <div className="flex justify-between items-start mb-4">
-                            <h2 className="text-3xl font-black text-slate-900 leading-tight print:text-2xl flex-1">
-                                {meetingTitle}
-                            </h2>
-                            <div className={`px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest print:border print:border-black ${
-                                minute.status === MinutesStatus.SIGNED ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
-                            }`}>
-                                {minute.status}
-                            </div>
-                        </div>
-                        <div className="flex flex-wrap gap-6 text-xs font-bold text-slate-500 uppercase tracking-widest">
-                            <div className="flex items-center gap-2">
-                                <span className="material-symbols-outlined text-lg text-primary print:hidden">event_available</span>
-                                <span>{minute.date}</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <span className="material-symbols-outlined text-lg text-primary print:hidden">location_on</span>
-                                <span>{minute.location || 'Kampus Utama'}</span>
-                            </div>
-                            {minute.meetLink && (
-                                <div className="flex items-center gap-2 text-blue-600 print:hidden">
-                                    <span className="material-symbols-outlined text-lg">videocam</span>
-                                    <span className="lowercase font-medium">{minute.meetLink}</span>
-                                </div>
-                            )}
-                        </div>
-                    </section>
-
-                    <section className="bg-slate-50 p-8 rounded-[2.5rem] border border-slate-100 no-print">
-                        <div className="flex items-center justify-between mb-6">
-                            <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-primary flex items-center gap-2">
-                                <span className="material-symbols-outlined">auto_awesome</span> Ringkasan AI
-                            </h3>
-                            <div className="flex items-center gap-2">
-                                {!aiSummary && (
-                                    <button onClick={handleGenerateAISummary} disabled={isGenerating} className="px-4 py-1.5 bg-primary text-white text-[10px] font-bold uppercase rounded-lg">
-                                        {isGenerating ? 'Membuat...' : 'Buat Ringkasan'}
-                                    </button>
-                                )}
-                            </div>
-                        </div>
-                        {aiSummary && <p className="text-slate-700 leading-relaxed italic">"{aiSummary}"</p>}
-                    </section>
-
-                    <section className="print:mt-8">
-                        <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400 mb-6 print:text-black">Pembahasan Rapat:</h3>
-                        <div className="prose prose-slate max-w-none">
-                            {discussionPoints.length > 0 ? (
-                                <ul className="space-y-6 list-none p-0">
-                                    {discussionPoints.map((text, i) => (
-                                        <li key={i} className="flex gap-6 items-start">
-                                            <span className="size-8 shrink-0 bg-slate-900 text-white flex items-center justify-center rounded-xl text-xs font-bold print:border print:border-black print:bg-white print:text-black">{i+1}</span>
-                                            <p className="text-base text-slate-700 leading-relaxed pt-1 print:text-black">{text}</p>
-                                        </li>
-                                    ))}
-                                </ul>
-                            ) : (
-                                <p className="text-slate-500 italic">Tidak ada konten pembahasan.</p>
-                            )}
-                        </div>
-                    </section>
-
-                    {minute.documentation && minute.documentation.length > 0 && (
-                        <section className="no-print">
-                            <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400 mb-6">Dokumentasi & Screenshot:</h3>
-                            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                                {minute.documentation.map((img, idx) => (
-                                    <div key={idx} className="aspect-video rounded-2xl overflow-hidden border border-slate-100 shadow-sm">
-                                        <img src={img} alt="doc" className="w-full h-full object-cover hover:scale-105 transition-transform cursor-zoom-in" onClick={() => window.open(img, '_blank')} />
-                                    </div>
-                                ))}
-                            </div>
-                        </section>
-                    )}
-
-                    <section className="hidden print:grid grid-cols-2 gap-20 mt-20 pt-10">
-                        <div className="text-center">
-                            <p className="text-xs mb-16 uppercase font-bold tracking-widest">Tanda Tangan Pimpinan,</p>
-                            {minute.status === MinutesStatus.SIGNED ? (
-                                <div className="space-y-2">
-                                    <p className="font-bold border-b border-black inline-block px-4">{minute.signedBy || 'Dr. Aris Wahyudi, M.T.'}</p>
-                                    <p className="text-[9px] uppercase text-green-600 font-bold">Terverifikasi Digital via SiNotulen</p>
-                                    <p className="text-[8px] text-slate-400">{minute.signedAt}</p>
-                                </div>
-                            ) : (
-                                <div className="h-10"></div>
-                            )}
-                        </div>
-                        <div className="text-center">
-                            <p className="text-xs mb-16 uppercase font-bold tracking-widest">Notulis,</p>
-                            <p className="font-bold border-b border-black inline-block px-4">{minute.submittedBy || 'Civitas Akademika'}</p>
-                        </div>
-                    </section>
+                {/* Document Title */}
+                <div className="text-center mb-10">
+                    <h3 className="text-lg font-bold uppercase underline decoration-2 underline-offset-4">NOTULENSI RAPAT</h3>
+                    <p className="text-xs font-medium mt-1">Nomor: {minute.id}/UNIVSM/NR/{new Date().getFullYear()}</p>
                 </div>
+
+                {/* Meta Information */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-y-3 gap-x-12 mb-10 text-xs bg-slate-50 p-6 rounded-2xl border border-slate-100 print:bg-transparent print:p-0 print:border-none">
+                    <div className="flex gap-4">
+                        <span className="font-bold w-24 shrink-0">Agenda Rapat</span>
+                        <span className="text-slate-700">: {meetingTitle}</span>
+                    </div>
+                    <div className="flex gap-4">
+                        <span className="font-bold w-24 shrink-0">Hari/Tanggal</span>
+                        <span className="text-slate-700">: {minute.date}</span>
+                    </div>
+                    <div className="flex gap-4">
+                        <span className="font-bold w-24 shrink-0">Tempat</span>
+                        <span className="text-slate-700">: {minute.location || 'Kampus Utama'}</span>
+                    </div>
+                    <div className="flex gap-4">
+                        <span className="font-bold w-24 shrink-0">Status Dokumen</span>
+                        <span className={`font-bold uppercase ${minute.status === MinutesStatus.SIGNED ? 'text-green-600' : 'text-amber-600'}`}>
+                            : {minute.status}
+                        </span>
+                    </div>
+                    {minute.meetLink && (
+                        <div className="flex gap-4 md:col-span-2">
+                            <span className="font-bold w-24 shrink-0">Link Virtual</span>
+                            <span className="text-blue-600 underline">: {minute.meetLink}</span>
+                        </div>
+                    )}
+                </div>
+
+                {/* AI Summary Section - No Print unless toggled */}
+                {aiSummary && (
+                    <div className="mb-10 p-6 bg-primary/5 rounded-2xl border border-primary/10 no-print">
+                        <h4 className="text-[10px] font-bold uppercase tracking-widest text-primary mb-3 flex items-center gap-2">
+                            <span className="material-symbols-outlined text-lg">auto_awesome</span> Ringkasan Eksekutif AI
+                        </h4>
+                        <p className="text-xs text-slate-700 leading-relaxed italic">"{aiSummary}"</p>
+                    </div>
+                )}
+                {!aiSummary && (
+                    <button onClick={handleGenerateAISummary} disabled={isGenerating} className="mb-10 w-full py-3 border-2 border-dashed border-slate-200 rounded-2xl text-[10px] font-bold uppercase tracking-widest text-slate-400 hover:bg-slate-50 transition-colors no-print">
+                        {isGenerating ? 'Menghasilkan Ringkasan...' : '+ Buat Ringkasan AI'}
+                    </button>
+                )}
+
+                {/* Main Content */}
+                <div className="space-y-8 min-h-[400px]">
+                    <h4 className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400 mb-4 print:text-black">Hasil Pembahasan:</h4>
+                    <div className="prose prose-slate max-w-none text-sm leading-relaxed text-slate-800 print:text-black">
+                        {discussionPoints.length > 0 ? (
+                            <ul className="list-none p-0 space-y-4">
+                                {discussionPoints.map((text, i) => (
+                                    <li key={i} className="flex gap-4">
+                                        <span className="font-bold shrink-0">{i + 1}.</span>
+                                        <p>{text}</p>
+                                    </li>
+                                ))}
+                            </ul>
+                        ) : (
+                            <p className="italic text-slate-400">Belum ada rincian pembahasan yang dicatat.</p>
+                        )}
+                    </div>
+                </div>
+
+                {/* Signature Area */}
+                <div className="mt-20 grid grid-cols-2 gap-20">
+                    <div className="text-center">
+                        <p className="text-xs font-bold mb-20 uppercase tracking-widest">Mengetahui/Mengesahkan,</p>
+                        {minute.status === MinutesStatus.SIGNED ? (
+                            <div className="space-y-1">
+                                <p className="font-black text-sm border-b border-black inline-block px-4">{minute.signedBy}</p>
+                                <p className="text-[8px] text-green-600 font-bold uppercase tracking-widest">Verified Digital Signature</p>
+                                <p className="text-[7px] text-slate-400">{minute.signedAt}</p>
+                            </div>
+                        ) : (
+                            <div className="h-10 border-b border-slate-100 w-48 mx-auto italic text-[8px] text-slate-300">Belum Diverifikasi</div>
+                        )}
+                    </div>
+                    <div className="text-center">
+                        <p className="text-xs font-bold mb-20 uppercase tracking-widest">Notulis,</p>
+                        <p className="font-black text-sm border-b border-black inline-block px-4">{minute.submittedBy || 'Civitas Akademika'}</p>
+                    </div>
+                </div>
+
+                {/* Attachment Section (Lampiran) - Always on new page when printing */}
+                {minute.documentation && minute.documentation.length > 0 && (
+                    <div className="mt-16 pt-16 border-t border-slate-100 print:page-break-before-always">
+                        <h4 className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400 mb-6 print:text-black">Lampiran I: Dokumentasi Rapat</h4>
+                        <div className="grid grid-cols-2 gap-4">
+                            {minute.documentation.map((img, idx) => (
+                                <div key={idx} className="aspect-video rounded-xl overflow-hidden border border-slate-200 shadow-sm print:border-black print:rounded-none">
+                                    <img src={img} alt={`Lampiran ${idx + 1}`} className="w-full h-full object-cover" />
+                                </div>
+                            ))}
+                        </div>
+                        <p className="text-[9px] text-slate-400 mt-4 italic print:text-black">Gambar di atas merupakan bagian tidak terpisahkan dari dokumen notulensi ini.</p>
+                    </div>
+                )}
             </div>
 
             <style>{`
                 @media print {
+                    @page { margin: 2cm; size: A4; }
                     .no-print { display: none !important; }
-                    body { font-family: 'Times New Roman', serif; background: white !important; }
-                    .print\\:block { display: block !important; }
-                    @page { margin: 1.5cm; }
+                    body { background: white !important; -webkit-print-color-adjust: exact; }
+                    * { color: black !important; font-family: 'Times New Roman', serif !important; }
+                    .print\\:page-break-before-always { page-break-before: always; }
+                    ul { list-style-type: none; }
                 }
             `}</style>
         </div>
