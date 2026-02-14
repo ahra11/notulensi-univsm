@@ -108,7 +108,11 @@ const Login: React.FC<LoginProps> = ({ onLogin, onNavigate }) => {
                     </div>
 
                     <div className="mt-10 pt-8 border-t border-slate-50 text-center">
-                        <p className="text-[10px] text-slate-400 font-medium italic">© 2024 Universitas Sapta Mandiri - Sistem Notulensi Digital</p>
+                        <p className="text-[8px] text-slate-400 font-bold uppercase tracking-widest mb-1">Lokasi Kampus</p>
+                        <p className="text-[9px] text-slate-400 leading-tight">
+                            Jalan A. Yani Km 1,5 Depan, Lingsir, Kec. Paringin Selatan, <br/>
+                            Kabupaten Balangan, Kalimantan Selatan 71618
+                        </p>
                     </div>
                 </div>
             </div>

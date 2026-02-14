@@ -26,12 +26,15 @@ export interface Minute {
     id: string;
     title: string;
     date: string;
+    location?: string;
     status: MinutesStatus;
     updatedAt: string;
     signedBy?: string;
+    signedAt?: string;
     agenda?: string;
-    content?: string[];
+    content?: string;
     documentation?: string[];
+    submittedBy?: string;
 }
 
-export type Page = 'dashboard' | 'history' | 'form' | 'detail' | 'profile' | 'login' | 'register';
+export type Page = 'dashboard' | 'history' | 'form' | 'detail' | 'profile' | 'login' | 'register' | 'reports';

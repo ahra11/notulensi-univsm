@@ -1,18 +1,20 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Page } from '../types';
+import { Page, Minute } from '../types';
 import { GoogleGenAI } from "@google/genai";
 import { SpreadsheetService } from '../services/spreadsheet';
 
 interface MinutesFormProps {
     onNavigate: (page: Page) => void;
+    initialData?: Minute | null;
 }
 
-const MinutesForm: React.FC<MinutesFormProps> = ({ onNavigate }) => {
-    const [title, setTitle] = useState("");
-    const [location, setLocation] = useState("");
-    const [date, setDate] = useState("");
-    const [notulensi, setNotulensi] = useState("");
+const MinutesForm: React.FC<MinutesFormProps> = ({ onNavigate, initialData }) => {
+    const [title, setTitle] = useState(initialData?.title || "");
+    const [location, setLocation] = useState(initialData?.location || "");
+    const [date, setDate] = useState(initialData?.date || "");
+    const [notulensi, setNotulensi] = useState(initialData?.content || "");
+    
     const [isRecording, setIsRecording] = useState(false);
     const [isTranscribing, setIsTranscribing] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -20,6 +22,8 @@ const MinutesForm: React.FC<MinutesFormProps> = ({ onNavigate }) => {
     
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     const audioChunksRef = useRef<Blob[]>([]);
+
+    const isEditMode = !!initialData;
 
     const startRecording = async () => {
         try {
@@ -39,7 +43,7 @@ const MinutesForm: React.FC<MinutesFormProps> = ({ onNavigate }) => {
             setIsRecording(true);
             setStatusMessage("Merekam...");
         } catch (err) {
-            alert("Gagal mengakses mikrofon. Pastikan Anda memberikan izin.");
+            alert("Gagal mengakses mikrofon.");
         }
     };
 
@@ -87,24 +91,30 @@ const MinutesForm: React.FC<MinutesFormProps> = ({ onNavigate }) => {
         }
 
         setIsSubmitting(true);
-        setStatusMessage("Menyinkronkan ke Cloud...");
+        setStatusMessage(isEditMode ? "Memperbarui Data..." : "Menyinkronkan ke Cloud...");
         
         const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
         const payload = {
+            id: initialData?.id || Date.now().toString(),
             title,
             location,
             date,
             content: notulensi,
-            submittedBy: currentUser.name || "Anonim",
-            submittedAt: new Date().toLocaleString('id-ID')
+            submittedBy: initialData?.submittedBy || currentUser.name || "Anonim",
+            updatedAt: new Date().toLocaleString('id-ID'),
+            status: initialData?.status || 'DRAFT'
         };
 
         try {
-            await SpreadsheetService.saveData(payload);
-            setStatusMessage("Sinkronisasi Berhasil!");
+            if (isEditMode) {
+                await SpreadsheetService.updateData(payload.id, payload);
+            } else {
+                await SpreadsheetService.saveData(payload);
+            }
+            setStatusMessage("Berhasil disimpan!");
             setTimeout(() => onNavigate('history'), 1500);
         } catch (error) {
-            alert("Gagal terhubung ke database online. Periksa koneksi internet Anda.");
+            alert("Gagal terhubung ke database.");
             setStatusMessage("");
         } finally {
             setIsSubmitting(false);
@@ -119,8 +129,8 @@ const MinutesForm: React.FC<MinutesFormProps> = ({ onNavigate }) => {
                         <span className="material-symbols-outlined text-slate-900">arrow_back</span>
                     </button>
                     <div>
-                        <h1 className="text-lg md:text-xl font-bold tracking-tight">Buat Notulensi</h1>
-                        <span className="text-[9px] block text-green-600 font-bold uppercase tracking-widest -mt-0.5">Online Sync Active</span>
+                        <h1 className="text-lg md:text-xl font-bold tracking-tight">{isEditMode ? 'Edit Notulensi' : 'Buat Notulensi'}</h1>
+                        <span className="text-[9px] block text-green-600 font-bold uppercase tracking-widest -mt-0.5">Database Online Terhubung</span>
                     </div>
                 </div>
                 <div className="flex items-center gap-3">
@@ -134,8 +144,8 @@ const MinutesForm: React.FC<MinutesFormProps> = ({ onNavigate }) => {
                         disabled={isSubmitting}
                         className="bg-primary text-white px-6 md:px-8 py-2.5 rounded-xl shadow-lg shadow-primary/20 font-bold text-xs uppercase tracking-widest flex items-center gap-2 transition-all hover:scale-105 active:scale-95 disabled:opacity-50"
                     >
-                        {isSubmitting ? <div className="size-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> : <span className="material-symbols-outlined text-sm">cloud_upload</span>}
-                        {isSubmitting ? 'Sync...' : 'Simpan'}
+                        {isSubmitting ? <div className="size-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> : <span className="material-symbols-outlined text-sm">save</span>}
+                        {isSubmitting ? 'Proses...' : (isEditMode ? 'Simpan Perubahan' : 'Simpan')}
                     </button>
                 </div>
             </header>
@@ -182,7 +192,7 @@ const MinutesForm: React.FC<MinutesFormProps> = ({ onNavigate }) => {
                         value={notulensi}
                         onChange={(e) => setNotulensi(e.target.value)}
                         className="w-full p-6 rounded-[2rem] border-slate-100 focus:ring-primary/20 focus:border-primary text-sm resize-none bg-slate-50/50 leading-relaxed min-h-[400px]" 
-                        placeholder="Tuliskan detail pembahasan di sini, atau gunakan fitur input suara untuk transkripsi otomatis..." 
+                        placeholder="Tuliskan detail pembahasan di sini..." 
                     />
                 </section>
             </div>

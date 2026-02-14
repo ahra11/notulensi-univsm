@@ -84,12 +84,15 @@ const Profile: React.FC<ProfileProps> = ({ onNavigate, onLogout }) => {
                                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter mb-1">Status Verifikasi</p>
                                     <p className="text-sm font-bold text-slate-800">{user.isPimpinan ? 'Pejabat Struktural' : 'Anggota Aktif'}</p>
                                 </div>
-                                <div className="p-6 bg-slate-50 border border-slate-100 rounded-3xl hover:bg-white hover:shadow-lg transition-all">
+                                <div className="p-6 bg-slate-50 border border-slate-100 rounded-3xl hover:bg-white hover:shadow-lg transition-all md:col-span-2">
                                     <span className="material-symbols-outlined text-primary mb-3">apartment</span>
-                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter mb-1">Institusi</p>
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter mb-1">Institusi & Lokasi</p>
                                     <p className="text-sm font-bold text-slate-800">Universitas Sapta Mandiri</p>
+                                    <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                                        Jl. A. Yani Km 1,5 Depan, Lingsir, Kec. Paringin Selatan, Kabupaten Balangan, Kalimantan Selatan 71618
+                                    </p>
                                 </div>
-                                <div className="p-6 bg-slate-50 border border-slate-100 rounded-3xl hover:bg-white hover:shadow-lg transition-all">
+                                <div className="p-6 bg-slate-50 border border-slate-100 rounded-3xl hover:bg-white hover:shadow-lg transition-all md:col-span-2">
                                     <span className="material-symbols-outlined text-primary mb-3">fingerprint</span>
                                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter mb-1">NIP / ID Civitas</p>
                                     <p className="text-sm font-bold text-slate-800">{user.nip}</p>

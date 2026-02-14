@@ -13,14 +13,13 @@ const Sidebar: React.FC<SidebarProps> = ({ activePage, onNavigate, onLogout }) =
 
     useEffect(() => {
         const userJson = localStorage.getItem('currentUser');
-        if (userJson) {
-            setUser(JSON.parse(userJson));
-        }
+        if (userJson) setUser(JSON.parse(userJson));
     }, []);
 
     const navItems = [
         { id: 'dashboard', label: 'Beranda', icon: 'home' },
-        { id: 'history', label: 'Riwayat Notulensi', icon: 'history' },
+        { id: 'history', label: 'Arsip Notulensi', icon: 'history' },
+        { id: 'reports', label: 'Laporan & Statistik', icon: 'bar_chart' },
         { id: 'profile', label: 'Profil Saya', icon: 'account_circle' },
     ];
 
@@ -34,7 +33,10 @@ const Sidebar: React.FC<SidebarProps> = ({ activePage, onNavigate, onLogout }) =
             <div className="p-6">
                 <div className="flex flex-col gap-1 mb-10">
                     <h1 className="text-primary font-bold leading-tight text-sm uppercase tracking-tight">Universitas Sapta Mandiri</h1>
-                    <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wider">Portal Notulensi Digital {user?.isPimpinan && <span className="text-accent-gold ml-1">● Pimpinan</span>}</p>
+                    <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wider">
+                        Portal Notulensi Digital 
+                        {user?.isPimpinan && <span className="text-amber-500 ml-1">● Pimpinan</span>}
+                    </p>
                 </div>
 
                 <button 
@@ -70,7 +72,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activePage, onNavigate, onLogout }) =
 
             <div className="mt-auto p-6 border-t border-slate-50">
                 <div className="flex items-center gap-3 p-2 rounded-2xl bg-slate-50">
-                    <div className={`size-10 rounded-full flex items-center justify-center font-bold text-xs shadow-inner ${user?.isPimpinan ? 'bg-accent-gold text-primary' : 'bg-primary text-white'}`}>
+                    <div className={`size-10 rounded-full flex items-center justify-center font-bold text-xs shadow-inner ${user?.isPimpinan ? 'bg-amber-500 text-white' : 'bg-primary text-white'}`}>
                         {user ? getInitials(user.name) : 'USM'}
                     </div>
                     <div className="flex-1 min-w-0">

@@ -1,112 +1,130 @@
 
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Page, Minute, MinutesStatus } from '../types';
-import Logo from '../components/Logo';
+import { SpreadsheetService } from '../services/spreadsheet';
 
 interface HistoryProps {
     onNavigate: (page: Page, data?: any) => void;
 }
 
 const History: React.FC<HistoryProps> = ({ onNavigate }) => {
-    const [filter, setFilter] = useState('Semua');
     const [searchQuery, setSearchQuery] = useState('');
-    const [startDate, setStartDate] = useState('');
-    const [endDate, setEndDate] = useState('');
-    const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
-    
-    const searchInputRef = useRef<HTMLInputElement>(null);
+    const [isDeleting, setIsDeleting] = useState<string | null>(null);
+    const [user, setUser] = useState<any>(null);
 
+    useEffect(() => {
+        const userJson = localStorage.getItem('currentUser');
+        if (userJson) setUser(JSON.parse(userJson));
+    }, []);
+
+    // Simulasi data dari state lokal untuk demo, idealnya di-fetch dari SpreadsheetService.fetchAll()
     const allHistoryItems: Minute[] = useMemo(() => [
-        { id: '101', title: 'Rapat Koordinasi Akademik Semester Ganjil', date: '2023-10-12', status: MinutesStatus.SIGNED, updatedAt: '09:00' },
-        { id: '102', title: 'Evaluasi Kurikulum Informatika 2024', date: '2023-10-05', status: MinutesStatus.FINALIZED, updatedAt: '14:00' },
-        { id: '103', title: 'Sosialisasi Program Pertukaran Mahasiswa', date: '2023-10-01', status: MinutesStatus.SIGNED, updatedAt: '11:00' },
-        { id: '901', title: 'Pembahasan Anggaran Hibah Penelitian', date: '2023-09-28', status: MinutesStatus.SIGNED, updatedAt: '10:30' },
-        { id: '902', title: 'Rapat Kerja Tahunan Universitas', date: '2023-09-15', status: MinutesStatus.SIGNED, updatedAt: '08:00' }
+        { id: '101', title: 'Rapat Koordinasi Akademik Semester Ganjil', date: '2023-10-12', status: MinutesStatus.SIGNED, updatedAt: '09:00', location: 'Ruang Senat', content: 'Pembahasan kurikulum baru\nEvaluasi dosen\nPersiapan wisuda' },
+        { id: '102', title: 'Evaluasi Kurikulum Informatika 2024', date: '2023-10-05', status: MinutesStatus.FINALIZED, updatedAt: '14:00', location: 'Lab Komputer', content: 'Integrasi AI di kurikulum' },
+        { id: '103', title: 'Sosialisasi Program Pertukaran Mahasiswa', date: '2023-10-01', status: MinutesStatus.SIGNED, updatedAt: '11:00', location: 'Zoom Meeting', content: 'Pelepasan 50 mahasiswa' },
+        { id: '901', title: 'Pembahasan Anggaran Hibah Penelitian', date: '2023-09-28', status: MinutesStatus.DRAFT, updatedAt: '10:30', location: 'Gedung Rektorat', content: 'Draf anggaran awal' }
     ], []);
 
     const filteredItems = useMemo(() => {
-        return allHistoryItems.filter(item => {
-            const matchesSearch = item.title.toLowerCase().includes(searchQuery.toLowerCase());
-            const matchesCategory = filter === 'Semua' || 
-                                   (filter === 'Tertandatangani' && item.status === MinutesStatus.SIGNED) ||
-                                   (filter === 'Final' && item.status === MinutesStatus.FINALIZED) ||
-                                   (filter === 'Draft' && item.status === MinutesStatus.DRAFT);
-            
-            const itemDate = new Date(item.date);
-            const start = startDate ? new Date(startDate) : null;
-            const end = endDate ? new Date(endDate) : null;
-            const matchesDate = (!start || itemDate >= start) && (!end || itemDate <= end);
+        return allHistoryItems.filter(item => 
+            item.title.toLowerCase().includes(searchQuery.toLowerCase())
+        );
+    }, [allHistoryItems, searchQuery]);
 
-            return matchesSearch && matchesCategory && matchesDate;
-        });
-    }, [allHistoryItems, searchQuery, filter, startDate, endDate]);
+    const handleDelete = async (id: string, e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (!confirm("Hapus dokumen ini secara permanen?")) return;
+        
+        setIsDeleting(id);
+        try {
+            await SpreadsheetService.deleteData(id);
+            alert("Dokumen berhasil dihapus dari cloud.");
+            // Refresh logic di sini
+        } catch (error) {
+            alert("Gagal menghapus.");
+        } finally {
+            setIsDeleting(null);
+        }
+    };
 
-    const groupedData = useMemo(() => {
-        const groups: { [key: string]: Minute[] } = {};
-        filteredItems.forEach(item => {
-            const date = new Date(item.date);
-            const monthYear = date.toLocaleString('id-ID', { month: 'long', year: 'numeric' });
-            if (!groups[monthYear]) groups[monthYear] = [];
-            groups[monthYear].push(item);
-        });
-        return Object.entries(groups).map(([month, items]) => ({ month, items }));
-    }, [filteredItems]);
+    const handleEdit = (item: Minute, e: React.MouseEvent) => {
+        e.stopPropagation();
+        onNavigate('form', item);
+    };
 
     return (
         <div className="pb-32 md:pb-10 min-h-screen bg-slate-50/30">
             <header className="sticky top-0 z-40 bg-white border-b border-slate-100 px-4 md:px-8 pt-6 pb-4 shadow-sm">
                 <div className="flex items-center justify-between mb-6">
-                    <div className="flex items-center gap-3">
-                        <div className="md:hidden">
-                            <span className="material-symbols-outlined text-primary text-3xl">history</span>
-                        </div>
-                        <div>
-                            <h1 className="text-xl md:text-2xl font-bold text-slate-800 tracking-tight leading-none">Arsip Notulensi</h1>
-                            <p className="text-[10px] md:text-xs text-slate-400 font-bold uppercase tracking-widest mt-1">Dokumen Resmi Universitas</p>
-                        </div>
+                    <div>
+                        <h1 className="text-xl md:text-2xl font-bold text-slate-800 tracking-tight leading-none">Arsip Notulensi</h1>
+                        <p className="text-[10px] md:text-xs text-slate-400 font-bold uppercase tracking-widest mt-1">Sistem Manajemen Dokumen</p>
                     </div>
                 </div>
 
-                <div className="flex flex-col gap-4 items-center">
-                    <div className="flex gap-2 w-full">
-                        <div className="relative flex-1 group">
-                            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg group-focus-within:text-primary transition-colors">search</span>
-                            <input 
-                                ref={searchInputRef}
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full h-12 pl-10 pr-16 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-2 focus:ring-primary focus:bg-white text-sm transition-all outline-none" 
-                                placeholder="Cari judul rapat..." 
-                                type="text" 
-                            />
-                        </div>
-                    </div>
+                <div className="relative group">
+                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg group-focus-within:text-primary transition-colors">search</span>
+                    <input 
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full h-12 pl-10 pr-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-2 focus:ring-primary focus:bg-white text-sm transition-all outline-none" 
+                        placeholder="Cari judul rapat atau agenda..." 
+                        type="text" 
+                    />
                 </div>
             </header>
 
-            <main className="max-w-7xl mx-auto px-5 md:px-8 mt-10 space-y-12">
-                {groupedData.map((group) => (
-                    <div key={group.month}>
-                        <div className="flex items-center gap-4 mb-6">
-                            <h2 className="text-xs font-extrabold text-slate-900 uppercase tracking-[0.2em]">{group.month}</h2>
-                            <div className="flex-1 h-px bg-slate-100"></div>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                            {group.items.map((item) => (
-                                <div 
-                                    key={item.id}
-                                    onClick={() => onNavigate('detail', item)}
-                                    className="group bg-white border border-slate-100 p-6 rounded-3xl shadow-sm hover:shadow-xl hover:border-primary/20 transition-all cursor-pointer"
-                                >
-                                    <h3 className="text-base font-bold text-slate-900 group-hover:text-primary leading-tight transition-colors mb-4 line-clamp-2">{item.title}</h3>
-                                    <div className="text-slate-400 text-[10px] font-bold uppercase tracking-tight">
-                                        {new Date(item.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
-                                    </div>
+            <main className="max-w-7xl mx-auto px-5 md:px-8 mt-10">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {filteredItems.map((item) => (
+                        <div 
+                            key={item.id}
+                            onClick={() => onNavigate('detail', item)}
+                            className="group bg-white border border-slate-100 p-6 rounded-3xl shadow-sm hover:shadow-xl hover:border-primary/20 transition-all cursor-pointer relative"
+                        >
+                            <div className="flex justify-between items-start mb-4">
+                                <div className={`px-2.5 py-1 rounded-lg text-[9px] font-bold uppercase tracking-wider ${
+                                    item.status === MinutesStatus.SIGNED ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
+                                }`}>
+                                    {item.status}
                                 </div>
-                            ))}
+                                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button 
+                                        onClick={(e) => handleEdit(item, e)}
+                                        className="size-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center hover:bg-blue-100"
+                                    >
+                                        <span className="material-symbols-outlined text-sm">edit</span>
+                                    </button>
+                                    <button 
+                                        onClick={(e) => handleDelete(item.id, e)}
+                                        disabled={isDeleting === item.id}
+                                        className="size-8 rounded-lg bg-red-50 text-red-600 flex items-center justify-center hover:bg-red-100"
+                                    >
+                                        {isDeleting === item.id ? <div className="size-3 border-2 border-red-400 border-t-red-600 rounded-full animate-spin"></div> : <span className="material-symbols-outlined text-sm">delete</span>}
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <h3 className="text-base font-bold text-slate-900 group-hover:text-primary leading-tight transition-colors mb-2 line-clamp-2">{item.title}</h3>
+                            <div className="space-y-1">
+                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight flex items-center gap-1">
+                                    <span className="material-symbols-outlined text-xs">calendar_today</span>
+                                    {new Date(item.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                </p>
+                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight flex items-center gap-1">
+                                    <span className="material-symbols-outlined text-xs">location_on</span>
+                                    {item.location || 'Kampus Utama'}
+                                </p>
+                            </div>
                         </div>
-                    </div>
-                ))}
+                    ))}
+                    {filteredItems.length === 0 && (
+                        <div className="col-span-full py-20 text-center">
+                            <span className="material-symbols-outlined text-6xl text-slate-200">folder_open</span>
+                            <p className="text-slate-400 font-bold mt-4 uppercase tracking-widest text-xs">Tidak ada data ditemukan</p>
+                        </div>
+                    )}
+                </div>
             </main>
         </div>
     );

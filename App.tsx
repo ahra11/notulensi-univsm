@@ -8,6 +8,7 @@ import MinutesDetail from './pages/MinutesDetail';
 import Profile from './pages/Profile';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import Reports from './pages/Reports';
 import Navbar from './components/Navbar';
 import Sidebar from './components/Sidebar';
 
@@ -17,10 +18,14 @@ const App: React.FC = () => {
     });
     const [currentPage, setCurrentPage] = useState<Page>('dashboard');
     const [selectedMinute, setSelectedMinute] = useState<Minute | null>(null);
+    const [editData, setEditData] = useState<Minute | null>(null);
 
     const navigateTo = (page: Page, data?: any) => {
         if (page === 'detail' && data) {
             setSelectedMinute(data);
+        }
+        if (page === 'form') {
+            setEditData(data || null);
         }
         setCurrentPage(page);
         window.scrollTo(0, 0);
@@ -53,13 +58,15 @@ const App: React.FC = () => {
             case 'history':
                 return <History onNavigate={navigateTo} />;
             case 'form':
-                return <MinutesForm onNavigate={navigateTo} />;
+                return <MinutesForm onNavigate={navigateTo} initialData={editData} />;
             case 'detail':
                 return selectedMinute ? (
                     <MinutesDetail minute={selectedMinute} onNavigate={navigateTo} />
                 ) : (
                     <Dashboard onNavigate={navigateTo} />
                 );
+            case 'reports':
+                return <Reports onNavigate={navigateTo} />;
             case 'profile':
                 return <Profile onNavigate={navigateTo} onLogout={handleLogout} />;
             default:
@@ -69,12 +76,10 @@ const App: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-background-light flex flex-col md:flex-row">
-            {/* Desktop Sidebar */}
             <div className="hidden md:block">
                 <Sidebar activePage={currentPage} onNavigate={navigateTo} onLogout={handleLogout} />
             </div>
 
-            {/* Main Content Area */}
             <main className="flex-1 overflow-y-auto pb-24 md:pb-0 md:ml-64 lg:ml-72">
                 <div className="max-w-7xl mx-auto min-h-screen bg-white md:bg-transparent md:p-8">
                     <div className="md:bg-white md:rounded-3xl md:shadow-xl md:min-h-[calc(100vh-64px)] overflow-hidden border border-slate-100">
@@ -83,7 +88,6 @@ const App: React.FC = () => {
                 </div>
             </main>
 
-            {/* Mobile Bottom Navbar */}
             <div className="md:hidden">
                 <Navbar activePage={currentPage} onNavigate={navigateTo} />
             </div>
