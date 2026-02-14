@@ -26,24 +26,6 @@ const MinutesDetail: React.FC<MinutesDetailProps> = ({ minute, onNavigate }) => 
                     <span className="material-symbols-outlined text-sm">print</span> Cetak
                 </button>
             </div>
-
-            {/* Document Layout - Optimized for Print & Visual Match */}
-            <div className="max-w-[210mm] mx-auto bg-white shadow-xl md:my-8 p-[15mm] md:p-[20mm] print:shadow-none print:m-0 print:p-0">
-                
-                {/* Official Letterhead - Matching Reference Image */}
-                <div className="flex items-start justify-between pb-4 mb-6 border-b-[1.5pt] border-black border-double">
-                    <div className="flex gap-4 items-start w-1/3">
-                        <img src={logoBootUrl} alt="Logo" className="h-16 w-auto object-contain grayscale" />
-                    </div>
-                    <div className="text-right flex-1">
-                        <h1 className="text-sm font-black uppercase tracking-tight">Universitas Sapta Mandiri</h1>
-                        <p className="text-[7pt] font-medium leading-tight italic mt-1">
-                            Jalan A. Yani Km 1,5 Depan, Lingsir, Kec. Paringin Selatan,<br/>
-                            Kabupaten Balangan, Kalimantan Selatan 71618 | Email: info@univsm.ac.id
-                        </p>
-                    </div>
-                </div>
-
                 {/* Document Title */}
                 <div className="text-center mb-10">
                     <h3 className="text-[12pt] font-bold uppercase underline decoration-[1.5pt] underline-offset-4">NOTULENSI RAPAT</h3>
