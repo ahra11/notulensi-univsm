@@ -15,7 +15,7 @@ const Navbar: React.FC<NavbarProps> = ({ activePage, onNavigate }) => {
     ];
 
     return (
-        <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-white/95 backdrop-blur-md border-t border-slate-100 flex justify-around items-center px-6 py-3 pb-6 z-50">
+        <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-white/95 backdrop-blur-md border-t border-slate-100 flex justify-around items-center px-6 py-3 pb-6 z-50 no-print">
             {navItems.map((item) => {
                 const isActive = activePage === item.id;
                 return (

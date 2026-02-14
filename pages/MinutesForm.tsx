@@ -1,6 +1,7 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Page, Minute } from '../types';
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, Blob as GenerativeBlob } from "@google/genai";
 import { SpreadsheetService } from '../services/spreadsheet';
 
 interface MinutesFormProps {
@@ -146,14 +147,14 @@ const MinutesForm: React.FC<MinutesFormProps> = ({ onNavigate, initialData }) =>
                 
                 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
                 
-                // Use array for contents and cast inlineData to any to bypass Blob naming conflict
+                // Use array for contents and provide correct structure for parts
                 const response = await ai.models.generateContent({
                     model: 'gemini-3-flash-preview',
                     contents: [{
                         parts: [
                             { text: "Transkripsikan audio rapat ini ke teks Bahasa Indonesia formal secara instan. Langsung ke inti pembicaraan." },
-                            // Cast inlineData object as any to resolve conflict with browser's global Blob type
-                            { inlineData: { mimeType: 'audio/webm', data: base64Audio } as any }
+                            // Use GenerativeBlob type to resolve conflict with browser's global Blob type
+                            { inlineData: { mimeType: 'audio/webm', data: base64Audio } as GenerativeBlob }
                         ]
                     }]
                 });

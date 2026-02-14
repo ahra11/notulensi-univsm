@@ -38,6 +38,7 @@
                     },
                     fontFamily: {
                         sans: ['Lexend', 'sans-serif'],
+                        serif: ['Times New Roman', 'serif'],
                     },
                 }
             }
@@ -56,6 +57,33 @@
         }
         .material-symbols-fill {
             font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+
+        /* Perbaikan Global untuk Pencetakan */
+        @media print {
+            .no-print, 
+            nav, 
+            aside, 
+            header, 
+            footer,
+            button,
+            .fixed,
+            .sticky {
+                display: none !important;
+            }
+            body {
+                background-color: white !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+            #root {
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+            main {
+                margin-left: 0 !important;
+                padding: 0 !important;
+            }
         }
     </style>
 <script type="importmap">
