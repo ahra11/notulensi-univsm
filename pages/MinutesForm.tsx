@@ -11,7 +11,7 @@ const MinutesForm: React.FC<{ onNavigate: (page: Page, data?: any) => void; init
         location: '',
         agenda: '',
         content: '',
-        documentation: [],
+        documentation: [], // Kolom untuk menyimpan gambar Base64
         status: 'DRAFT'
     });
 
@@ -21,84 +21,85 @@ const MinutesForm: React.FC<{ onNavigate: (page: Page, data?: any) => void; init
         if (initialData) setFormData(initialData);
     }, [initialData]);
 
-    // FITUR: Rekaman Suara
-    const handleVoiceRecording = () => {
-        const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-        if (!SpeechRecognition) return alert("Gunakan Google Chrome untuk fitur suara.");
-        
-        const recognition = new SpeechRecognition();
-        recognition.lang = 'id-ID';
-        recognition.onstart = () => setIsListening(true);
-        recognition.onend = () => setIsListening(false);
-        recognition.onresult = (event: any) => {
-            const transcript = event.results[0][0].transcript;
-            setFormData(prev => ({ ...prev, content: prev.content + " " + transcript }));
-        };
-        recognition.start();
+    // FUNGSI UNGGAL GAMBAR (DOKUMENTASI)
+    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = e.target.files;
+        if (files) {
+            const fileArray = Array.from(files);
+            fileArray.forEach(file => {
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    setFormData(prev => ({
+                        ...prev,
+                        documentation: [...(prev.documentation || []), reader.result as string]
+                    }));
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+    };
+
+    const removeImage = (index: number) => {
+        setFormData(prev => ({
+            ...prev,
+            documentation: prev.documentation?.filter((_, i) => i !== index)
+        }));
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
-        const minuteData = { id: initialData?.id || `M-${Date.now()}`, submittedBy: user.name, createdAt: new Date().toISOString(), ...formData };
+        const minuteData = { 
+            id: initialData?.id || `M-${Date.now()}`, 
+            submittedBy: user.name, 
+            createdAt: new Date().toISOString(), 
+            ...formData 
+        };
         try {
             await SpreadsheetService.saveMinute(minuteData);
-            alert('Notulensi Berhasil Disimpan!');
+            alert('Notulensi & Dokumentasi Berhasil Disimpan!');
             onNavigate('history');
         } catch (error) {
-            alert('Gagal Simpan. Cek Koneksi.');
+            alert('Gagal Simpan. Periksa Koneksi Internet.');
         } finally { setIsLoading(false); }
     };
 
     return (
         <div className="p-4 md:p-8 animate-in fade-in duration-500">
-            <div className="mb-8 flex justify-between items-end">
-                <div>
-                    <h1 className="text-2xl font-black text-[#252859]">Notulensi Baru</h1>
-                    <p className="text-sm text-slate-400 italic">Penyusun: {user.name}</p>
-                </div>
-                <button type="button" onClick={() => {
-                    const ut = new SpeechSynthesisUtterance(formData.content);
-                    ut.lang = 'id-ID'; window.speechSynthesis.speak(ut);
-                }} className="p-3 bg-slate-100 rounded-2xl text-slate-400 hover:text-[#252859] transition-all">
-                    <span className="material-symbols-outlined">volume_up</span>
-                </button>
-            </div>
+            <h1 className="text-2xl font-black text-[#252859] mb-8">Notulensi & Dokumentasi</h1>
 
             <form onSubmit={handleSubmit} className="space-y-6 max-w-5xl">
-                {/* Baris 1: Informasi Utama */}
+                {/* Input Teks (Judul, Tanggal, Lokasi) */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="space-y-1">
-                        <label className="text-[10px] font-black uppercase text-slate-400 ml-2">Judul Rapat</label>
-                        <input required type="text" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} className="w-full p-4 bg-slate-50 border-none rounded-2xl text-sm focus:ring-2 focus:ring-[#252859]" placeholder="Contoh: Rapat Senat" />
-                    </div>
-                    <div className="space-y-1">
-                        <label className="text-[10px] font-black uppercase text-slate-400 ml-2">Tanggal</label>
-                        <input required type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} className="w-full p-4 bg-slate-50 border-none rounded-2xl text-sm focus:ring-2 focus:ring-[#252859]" />
-                    </div>
-                    <div className="space-y-1">
-                        <label className="text-[10px] font-black uppercase text-slate-400 ml-2">Lokasi</label>
-                        <input required type="text" value={formData.location} onChange={e => setFormData({...formData, location: e.target.value})} className="w-full p-4 bg-slate-50 border-none rounded-2xl text-sm focus:ring-2 focus:ring-[#252859]" placeholder="Gedung A / Zoom" />
+                    <input required type="text" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} className="p-4 bg-slate-50 rounded-2xl text-sm" placeholder="Judul Rapat" />
+                    <input required type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} className="p-4 bg-slate-50 rounded-2xl text-sm" />
+                    <input required type="text" value={formData.location} onChange={e => setFormData({...formData, location: e.target.value})} className="p-4 bg-slate-50 rounded-2xl text-sm" placeholder="Lokasi" />
+                </div>
+
+                <textarea required value={formData.content} onChange={e => setFormData({...formData, content: e.target.value})} className="w-full p-4 bg-slate-50 rounded-2xl text-sm min-h-[200px]" placeholder="Hasil Pembahasan..." />
+
+                {/* --- BAGIAN DOKUMENTASI GAMBAR --- */}
+                <div className="space-y-3">
+                    <label className="text-[10px] font-black uppercase text-slate-400 ml-2">Lampiran Foto Kegiatan</label>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        {formData.documentation?.map((img, index) => (
+                            <div key={index} className="relative group aspect-video rounded-xl overflow-hidden border border-slate-100 shadow-sm">
+                                <img src={img} className="w-full h-full object-cover" alt="Preview" />
+                                <button type="button" onClick={() => removeImage(index)} className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-lg opacity-0 group-hover:opacity-100 transition-all">
+                                    <span className="material-symbols-outlined text-xs">delete</span>
+                                </button>
+                            </div>
+                        ))}
+                        <label className="flex flex-col items-center justify-center aspect-video rounded-xl border-2 border-dashed border-slate-200 hover:border-[#252859] cursor-pointer text-slate-400 transition-all">
+                            <span className="material-symbols-outlined text-2xl">add_a_photo</span>
+                            <span className="text-[9px] font-bold mt-1 uppercase">Unggah Foto</span>
+                            <input type="file" accept="image/*" multiple onChange={handleImageUpload} className="hidden" />
+                        </label>
                     </div>
                 </div>
 
-                {/* Agenda */}
-                <div className="space-y-1">
-                    <label className="text-[10px] font-black uppercase text-slate-400 ml-2">Agenda Rapat</label>
-                    <textarea required value={formData.agenda} onChange={e => setFormData({...formData, agenda: e.target.value})} className="w-full p-4 bg-slate-50 border-none rounded-2xl text-sm min-h-[80px]" placeholder="Poin-poin pembahasan..." />
-                </div>
-
-                {/* Hasil Pembahasan + Mic */}
-                <div className="space-y-1 relative">
-                    <label className="text-[10px] font-black uppercase text-slate-400 ml-2">Hasil Pembahasan (Gunakan Mic Jika Perlu)</label>
-                    <textarea required value={formData.content} onChange={e => setFormData({...formData, content: e.target.value})} className="w-full p-4 bg-slate-50 border-none rounded-[2rem] text-sm min-h-[250px] focus:ring-2 focus:ring-[#252859]" placeholder="Tuliskan detail rapat di sini..." />
-                    <button type="button" onClick={handleVoiceRecording} className={`absolute bottom-6 right-6 size-12 rounded-full flex items-center justify-center shadow-lg transition-all ${isListening ? 'bg-red-500 animate-pulse text-white' : 'bg-[#252859] text-white hover:scale-110'}`}>
-                        <span className="material-symbols-outlined text-xl">{isListening ? 'mic' : 'mic_none'}</span>
-                    </button>
-                </div>
-
-                <button type="submit" disabled={isLoading} className="w-full py-5 bg-[#252859] text-white rounded-2xl font-black text-xs uppercase tracking-[0.3em] shadow-xl hover:brightness-110 transition-all">
-                    {isLoading ? 'Menyimpan...' : 'Simpan Notulensi ke Cloud'}
+                <button type="submit" disabled={isLoading} className="w-full py-5 bg-[#252859] text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl">
+                    {isLoading ? 'Mengunggah Data...' : 'Simpan Notulensi & Foto'}
                 </button>
             </form>
         </div>
