@@ -1,80 +1,119 @@
-
 /**
- * Spreadsheet Service - Full CRUD Integration
- * Menghubungkan aplikasi dengan Google Apps Script sebagai Backend
+ * Spreadsheet Service - Universitas Sapta Mandiri
+ * Integrasi Full CRUD untuk Notulensi dan Manajemen User
  */
 const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz_R0sOiuJtztp2lz0DHkG40S755Gh389RZienuYXzpaPeNrbUmQMd5yErzBEsGx1mnnQ/exec"; 
 
 export const SpreadsheetService = {
-    // Fungsi untuk mengambil semua data (Read)
-    async fetchAll(): Promise<any[]> {
-        if (!WEB_APP_URL) return [];
+    // ==========================================
+    // BAGIAN 1: MANAJEMEN USER (Cloud Sync)
+    // ==========================================
+
+    async getUsers(): Promise<any[]> {
         try {
-            const response = await fetch(WEB_APP_URL);
+            const response = await fetch(`${WEB_APP_URL}?action=getUsers`);
             const data = await response.json();
-            return Array.isArray(data) ? data : [];
+            const users = data.users || [];
+            localStorage.setItem('usm_users', JSON.stringify(users)); // Backup lokal
+            return users;
         } catch (error) {
-            console.error("Gagal mengambil data dari cloud:", error);
-            // Jika gagal, coba ambil dari local storage sebagai backup offline
+            console.error("Gagal mengambil data user:", error);
+            return JSON.parse(localStorage.getItem('usm_users') || '[]');
+        }
+    },
+
+    async addUser(user: any) {
+        return this.postToCloud({ action: 'addUser', user });
+    },
+
+    async updateUser(id: string, user: any) {
+        return this.postToCloud({ action: 'updateUser', id, user });
+    },
+
+    async deleteUser(id: string) {
+        return this.postToCloud({ action: 'deleteUser', id });
+    },
+
+    // ==========================================
+    // BAGIAN 2: MANAJEMEN NOTULENSI (Minutes)
+    // ==========================================
+
+    async fetchAllMinutes(): Promise<any[]> {
+        try {
+            const response = await fetch(`${WEB_APP_URL}?actionType=read`); // Sesuaikan action di Apps Script
+            const data = await response.json();
+            const minutes = Array.isArray(data) ? data : [];
+            localStorage.setItem('usm_minutes_cache', JSON.stringify(minutes));
+            return minutes;
+        } catch (error) {
             const local = localStorage.getItem('usm_minutes_cache');
             return local ? JSON.parse(local) : [];
         }
     },
 
-    // Fungsi utama untuk operasi POST (Create, Update, Delete, Verify)
-    async executeAction(data: any, action: 'create' | 'update' | 'delete' | 'verify') {
-        if (!WEB_APP_URL) {
-            throw new Error("Konfigurasi database belum lengkap.");
-        }
+    async saveMinute(data: any) {
+        return this.postToCloud({ ...data, actionType: 'create' });
+    },
+
+    async updateMinute(id: string, updates: any) {
+        return this.postToCloud({ id, ...updates, actionType: 'update' });
+    },
+
+    async deleteMinute(id: string) {
+        return this.postToCloud({ id, actionType: 'delete' });
+    },
+
+    async verifyMinute(id: string, verifierName: string) {
+        return this.postToCloud({ 
+            id, 
+            signedBy: verifierName, 
+            signedAt: new Date().toLocaleString('id-ID'),
+            status: 'SIGNED',
+            actionType: 'verify'
+        });
+    },
+
+    // ==========================================
+    // UTILITY: PRIVATE POST METHOD
+    // ==========================================
+
+    async postToCloud(payload: any) {
+        if (!WEB_APP_URL) throw new Error("URL Cloud belum dikonfigurasi.");
 
         try {
-            await fetch(WEB_APP_URL, {
+            const response = await fetch(WEB_APP_URL, {
                 method: 'POST',
-                mode: 'no-cors', // Google Apps Script memerlukan mode ini untuk POST lintas asal
+                mode: 'no-cors', // Penting untuk Google Apps Script
                 headers: { 'Content-Type': 'text/plain' },
-                body: JSON.stringify({ ...data, actionType: action })
+                body: JSON.stringify(payload)
             });
 
-            // Optimistic update: Simpan di cache lokal untuk kecepatan UI
-            this.syncLocalCache(data, action);
+            // Sinkronisasi Cache Lokal secara Optimistik
+            this.syncLocalCache(payload);
             
             return { success: true };
         } catch (error) {
-            console.error(`Gagal mengeksekusi aksi ${action}:`, error);
+            console.error("Cloud Sync Error:", error);
             throw error;
         }
     },
 
-    syncLocalCache(data: any, action: string) {
-        let local = JSON.parse(localStorage.getItem('usm_minutes_cache') || '[]');
-        if (action === 'create') {
-            local.unshift(data);
-        } else if (action === 'update' || action === 'verify') {
-            local = local.map((item: any) => item.id === data.id ? { ...item, ...data } : item);
-        } else if (action === 'delete') {
-            local = local.filter((item: any) => item.id !== data.id);
+    syncLocalCache(payload: any) {
+        // Logika sinkronisasi untuk Notulensi
+        if (payload.actionType) {
+            let local = JSON.parse(localStorage.getItem('usm_minutes_cache') || '[]');
+            if (payload.actionType === 'create') local.unshift(payload);
+            else if (payload.actionType === 'update' || payload.actionType === 'verify') {
+                local = local.map((item: any) => item.id === payload.id ? { ...item, ...payload } : item);
+            } else if (payload.actionType === 'delete') {
+                local = local.filter((item: any) => item.id !== payload.id);
+            }
+            localStorage.setItem('usm_minutes_cache', JSON.stringify(local));
         }
-        localStorage.setItem('usm_minutes_cache', JSON.stringify(local));
-    },
-
-    async saveData(data: any) {
-        return this.executeAction(data, 'create');
-    },
-
-    async updateData(id: string, updates: any) {
-        return this.executeAction({ id, ...updates }, 'update');
-    },
-
-    async deleteData(id: string) {
-        return this.executeAction({ id }, 'delete');
-    },
-
-    async verifyMinute(id: string, verifierName: string) {
-        return this.executeAction({ 
-            id, 
-            signedBy: verifierName, 
-            signedAt: new Date().toLocaleString('id-ID'),
-            status: 'SIGNED'
-        }, 'verify');
+        
+        // Logika sinkronisasi untuk User (jika perlu update instan di UI)
+        if (payload.action === 'updateUser' || payload.action === 'addUser') {
+            // Pengambilan ulang data user biasanya lebih aman via fetch di UserManagement.tsx
+        }
     }
 };
