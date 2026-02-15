@@ -1,3 +1,4 @@
+
 import React from 'react';
 
 interface LogoProps {
@@ -6,9 +7,11 @@ interface LogoProps {
 }
 
 const Logo: React.FC<LogoProps> = ({ className = "h-14", bw = false }) => {
-  // Gunakan ID file dari link drive Anda
-  const fileId = "1EOW7ThAe7HIXfuL1R9BPxMxiCKGHc6r8";
-  const logoUrl = `https://drive.google.com/uc?export=view&id=${fileId}`;
+  /** 
+   * CATATAN: Ganti [USERNAME] dan [REPO] dengan data GitHub Anda.
+   * Contoh: https://raw.githubusercontent.com/akunanda/reponanda/main/Gambar%20Logo%20hitam%20putih%20Univsm.png
+   */
+  const logoUrl = "https://univsm.ac.id/wp-content/uploads/2023/08/cropped-logo-univsm-1.png";
 
   return (
     <div className={`flex items-center gap-4 ${className}`}>
@@ -18,6 +21,7 @@ const Logo: React.FC<LogoProps> = ({ className = "h-14", bw = false }) => {
           alt="Logo Universitas Sapta Mandiri" 
           className={`h-full w-auto object-contain transition-all ${bw ? 'grayscale contrast-125' : ''}`}
           onError={(e) => {
+            // Fallback jika logo gagal dimuat
             (e.target as HTMLImageElement).src = "https://cdn-icons-png.flaticon.com/512/3070/3070014.png";
           }}
         />
@@ -27,10 +31,12 @@ const Logo: React.FC<LogoProps> = ({ className = "h-14", bw = false }) => {
           UNIVSM
         </span>
         <div className="flex flex-col -mt-0.5">
-          {/* Perbaikan: Menambahkan penutup </span> */}
           <span className={`font-bold tracking-[0.1em] text-[8px] uppercase ${bw ? 'text-black' : 'text-slate-500'}`}>
             Universitas Sapta Mandiri
-          </span> 
+          </span>
+          <span className={`font-medium text-[6px] uppercase tracking-[0.05em] ${bw ? 'text-black' : 'text-slate-400'}`}>
+            Knowledge, Integrity, & Innovation
+          </span>
         </div>
       </div>
     </div>

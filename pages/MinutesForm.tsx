@@ -26,8 +26,8 @@ const MinutesForm: React.FC<MinutesFormProps> = ({ onNavigate, initialData }) =>
     const [recordedAudioUrl, setRecordedAudioUrl] = useState<string | null>(null);
     
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-    // Explicitly use globalThis.Blob to avoid conflict with @google/genai's internal Blob type
-    const audioChunksRef = useRef<globalThis.Blob[]>([]);
+    // Use any[] to avoid naming conflict with @google/genai's internal Blob type
+    const audioChunksRef = useRef<any[]>([]);
 
     const isEditMode = !!initialData;
 
@@ -64,7 +64,7 @@ const MinutesForm: React.FC<MinutesFormProps> = ({ onNavigate, initialData }) =>
             const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
             const response = await ai.models.generateContent({
                 model: "gemini-2.5-flash-preview-tts",
-                contents: { parts: [{ text: `Bacakan hasil rapat ini: ${notulensi.substring(0, 1000)}` }] },
+                contents: [{ parts: [{ text: `Bacakan hasil rapat ini: ${notulensi.substring(0, 1000)}` }] }],
                 config: {
                     responseModalities: [Modality.AUDIO],
                     speechConfig: {
@@ -104,8 +104,8 @@ const MinutesForm: React.FC<MinutesFormProps> = ({ onNavigate, initialData }) =>
             audioChunksRef.current = [];
             mediaRecorder.ondataavailable = (event) => { if (event.data.size > 0) audioChunksRef.current.push(event.data); };
             mediaRecorder.onstop = async () => {
-                // Use globalThis.Blob to ensure we are using the browser's native Blob constructor and type
-                const audioBlob = new globalThis.Blob(audioChunksRef.current, { type: 'audio/webm' });
+                // Use the native browser Blob constructor
+                const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
                 const url = URL.createObjectURL(audioBlob);
                 setRecordedAudioUrl(url);
                 await transcribeAudio(audioBlob);
@@ -124,8 +124,8 @@ const MinutesForm: React.FC<MinutesFormProps> = ({ onNavigate, initialData }) =>
         }
     };
 
-    // Use globalThis.Blob for the parameter type to ensure consistency with the native API
-    const transcribeAudio = async (audioBlob: globalThis.Blob) => {
+    // Use any to bypass conflict between native Blob and @google/genai's internal Blob type
+    const transcribeAudio = async (audioBlob: any) => {
         setIsTranscribing(true);
         setStatusMessage("AI sedang merangkum hasil rapat...");
         try {
