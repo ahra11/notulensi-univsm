@@ -1,4 +1,3 @@
-
 import React from 'react';
 
 interface LogoProps {
@@ -7,8 +6,9 @@ interface LogoProps {
 }
 
 const Logo: React.FC<LogoProps> = ({ className = "h-14", bw = false }) => {
-  // Logo Utama USM
-  const logoUrl = "https://drive.google.com/file/d/1EOW7ThAe7HIXfuL1R9BPxMxiCKGHc6r8/view?usp=sharing";
+  // Gunakan ID file dari link drive Anda
+  const fileId = "1EOW7ThAe7HIXfuL1R9BPxMxiCKGHc6r8";
+  const logoUrl = `https://drive.google.com/uc?export=view&id=${fileId}`;
 
   return (
     <div className={`flex items-center gap-4 ${className}`}>
@@ -27,8 +27,10 @@ const Logo: React.FC<LogoProps> = ({ className = "h-14", bw = false }) => {
           UNIVSM
         </span>
         <div className="flex flex-col -mt-0.5">
+          {/* Perbaikan: Menambahkan penutup </span> */}
           <span className={`font-bold tracking-[0.1em] text-[8px] uppercase ${bw ? 'text-black' : 'text-slate-500'}`}>
             Universitas Sapta Mandiri
+          </span> 
         </div>
       </div>
     </div>
