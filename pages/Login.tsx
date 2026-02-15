@@ -1,4 +1,7 @@
 import React, { useState } from 'react';
+// 1. IMPORT LOGO SECARA LANGSUNG
+// Sesuaikan path "../" jika file Login.tsx berada di dalam folder components
+import logoUSM from '../logo-usm.png'; 
 
 interface LoginProps {
     onLogin: () => void;
@@ -36,14 +39,14 @@ const Login: React.FC<LoginProps> = ({ onLogin, onNavigate }) => {
             <div className="max-w-md w-full bg-white rounded-[2.5rem] shadow-2xl shadow-primary/10 overflow-hidden border border-slate-100">
                 <div className="p-8 md:p-12">
                     <div className="flex flex-col items-center text-center mb-10">
-                        {/* PENGGANTIAN IKON MENARA DENGAN LOGO USM */}
+                        {/* 2. PENGGUNAAN VARIABEL logoUSM HASIL IMPORT */}
                         <div className="mb-6">
                             <img 
-                                src="/logo-usm.png" 
+                                src={logoUSM} 
                                 alt="Logo Universitas Sapta Mandiri" 
-                                className="h-24 w-auto object-contain drop-shadow-md"
+                                className="h-28 w-auto object-contain drop-shadow-md"
                                 onError={(e) => {
-                                    // Fallback jika gambar tidak ditemukan
+                                    // Fallback jika import gagal, tetap tampilkan icon standar
                                     (e.target as HTMLImageElement).src = "https://cdn-icons-png.flaticon.com/512/3070/3070014.png";
                                 }}
                             />
