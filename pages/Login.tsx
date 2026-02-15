@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 
 interface LoginProps {
@@ -17,12 +16,10 @@ const Login: React.FC<LoginProps> = ({ onLogin, onNavigate }) => {
         setIsLoading(true);
         setError('');
 
-        // Simulasi pengecekan login
         setTimeout(() => {
             const users = JSON.parse(localStorage.getItem('usm_users') || '[]');
             const user = users.find((u: any) => u.email === email && u.password === password);
 
-            // Mode Demo atau User terdaftar
             if (user || (email === 'admin@usm.ac.id' && password === 'admin')) {
                 const sessionUser = user || { name: 'Dr. Aris Subakti', role: 'Administrator', nip: '19850101' };
                 localStorage.setItem('currentUser', JSON.stringify(sessionUser));
@@ -39,8 +36,17 @@ const Login: React.FC<LoginProps> = ({ onLogin, onNavigate }) => {
             <div className="max-w-md w-full bg-white rounded-[2.5rem] shadow-2xl shadow-primary/10 overflow-hidden border border-slate-100">
                 <div className="p-8 md:p-12">
                     <div className="flex flex-col items-center text-center mb-10">
-                        <div className="p-4 bg-primary/5 rounded-full mb-6">
-                            <span className="material-symbols-outlined text-5xl text-primary">account_balance</span>
+                        {/* PENGGANTIAN IKON MENARA DENGAN LOGO USM */}
+                        <div className="mb-6">
+                            <img 
+                                src="/logo-usm.png" 
+                                alt="Logo Universitas Sapta Mandiri" 
+                                className="h-24 w-auto object-contain drop-shadow-md"
+                                onError={(e) => {
+                                    // Fallback jika gambar tidak ditemukan
+                                    (e.target as HTMLImageElement).src = "https://cdn-icons-png.flaticon.com/512/3070/3070014.png";
+                                }}
+                            />
                         </div>
                         <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">Portal Notulensi</h1>
                         <p className="text-sm text-primary font-bold uppercase tracking-widest mt-1">Universitas Sapta Mandiri</p>
