@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect } from 'react';
-import { Page } from '../types';
+import { Page, UserRole } from '../types';
 
 interface SidebarProps {
     activePage: Page;
@@ -16,12 +15,20 @@ const Sidebar: React.FC<SidebarProps> = ({ activePage, onNavigate, onLogout }) =
         if (userJson) setUser(JSON.parse(userJson));
     }, []);
 
-    const navItems = [
-        { id: 'dashboard', label: 'Beranda', icon: 'home' },
-        { id: 'history', label: 'Arsip Notulensi', icon: 'history' },
-        { id: 'reports', label: 'Laporan & Statistik', icon: 'bar_chart' },
-        { id: 'profile', label: 'Profil Saya', icon: 'account_circle' },
+    // Definisi semua menu yang mungkin ada
+    const allNavItems = [
+        { id: 'dashboard', label: 'Beranda', icon: 'home', roles: ['SUPER_ADMIN', 'PIMPINAN', 'SEKRETARIS', 'STAF'] },
+        { id: 'schedules', label: 'Jadwal Rapat', icon: 'calendar_month', roles: ['SUPER_ADMIN', 'PIMPINAN', 'SEKRETARIS', 'STAF'] },
+        { id: 'history', label: 'Arsip Notulensi', icon: 'history', roles: ['SUPER_ADMIN', 'PIMPINAN', 'SEKRETARIS', 'STAF'] },
+        { id: 'users', label: 'Manajemen User', icon: 'group', roles: ['SUPER_ADMIN', 'PIMPINAN'] },
+        { id: 'reports', label: 'Laporan & Statistik', icon: 'bar_chart', roles: ['SUPER_ADMIN', 'PIMPINAN'] },
+        { id: 'profile', label: 'Profil Saya', icon: 'account_circle', roles: ['SUPER_ADMIN', 'PIMPINAN', 'SEKRETARIS', 'STAF'] },
     ];
+
+    // Filter menu berdasarkan role user yang login
+    const filteredNavItems = allNavItems.filter(item => 
+        user && item.roles.includes(user.role as UserRole)
+    );
 
     const getInitials = (name: string) => {
         if (!name) return 'U';
@@ -30,25 +37,27 @@ const Sidebar: React.FC<SidebarProps> = ({ activePage, onNavigate, onLogout }) =
 
     return (
         <aside className="fixed left-0 top-0 h-full w-64 lg:w-72 bg-white border-r border-slate-100 flex flex-col z-50">
-            <div className="p-6">
-                <div className="flex flex-col gap-1 mb-10">
+            <div className="p-6 overflow-y-auto flex-1">
+                <div className="flex flex-col gap-1 mb-8">
                     <h1 className="text-primary font-bold leading-tight text-sm uppercase tracking-tight">Universitas Sapta Mandiri</h1>
-                    <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wider">
+                    <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wider flex items-center gap-1">
                         Portal Notulensi Digital 
-                        {user?.isPimpinan && <span className="text-amber-500 ml-1">● Pimpinan</span>}
+                        {user?.role === 'SUPER_ADMIN' && <span className="text-red-500 font-black">● Admin</span>}
+                        {user?.role === 'PIMPINAN' && <span className="text-amber-500 font-black">● Pimpinan</span>}
                     </p>
                 </div>
 
+                {/* Tombol Notulensi Baru: Disembunyikan jika role hanya Pimpinan (opsional) */}
                 <button 
                     onClick={() => onNavigate('form')}
-                    className="w-full flex items-center justify-center gap-2 py-4 bg-primary text-white rounded-2xl shadow-lg shadow-primary/20 font-bold text-sm uppercase tracking-widest hover:brightness-110 transition-all active:scale-95 mb-10"
+                    className="w-full flex items-center justify-center gap-2 py-4 bg-primary text-white rounded-2xl shadow-lg shadow-primary/20 font-bold text-sm uppercase tracking-widest hover:brightness-110 transition-all active:scale-95 mb-8"
                 >
                     <span className="material-symbols-outlined">add</span>
                     <span>Notulensi Baru</span>
                 </button>
 
-                <nav className="space-y-2">
-                    {navItems.map((item) => {
+                <nav className="space-y-1.5">
+                    {filteredNavItems.map((item) => {
                         const isActive = activePage === item.id;
                         return (
                             <button
@@ -70,14 +79,16 @@ const Sidebar: React.FC<SidebarProps> = ({ activePage, onNavigate, onLogout }) =
                 </nav>
             </div>
 
-            <div className="mt-auto p-6 border-t border-slate-50">
+            <div className="p-6 border-t border-slate-50">
                 <div className="flex items-center gap-3 p-2 rounded-2xl bg-slate-50">
-                    <div className={`size-10 rounded-full flex items-center justify-center font-bold text-xs shadow-inner ${user?.isPimpinan ? 'bg-amber-500 text-white' : 'bg-primary text-white'}`}>
+                    <div className={`size-10 rounded-full flex items-center justify-center font-bold text-xs shadow-inner 
+                        ${user?.role === 'SUPER_ADMIN' ? 'bg-red-500 text-white' : 
+                          user?.role === 'PIMPINAN' ? 'bg-amber-500 text-white' : 'bg-primary text-white'}`}>
                         {user ? getInitials(user.name) : 'USM'}
                     </div>
                     <div className="flex-1 min-w-0">
                         <p className="text-xs font-bold text-slate-900 truncate">{user ? user.name : 'Memuat...'}</p>
-                        <p className="text-[10px] text-slate-400 font-medium truncate">{user ? user.role : 'Civitas USM'}</p>
+                        <p className="text-[10px] text-slate-400 font-extrabold uppercase truncate">{user ? user.role.replace('_', ' ') : 'Civitas USM'}</p>
                     </div>
                     <button 
                         onClick={onLogout}
