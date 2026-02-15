@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 // 1. IMPORT LOGO SECARA LANGSUNG
-// Sesuaikan path "../" jika file Login.tsx berada di dalam folder components
 import logoUSM from '../logo-usm.png'; 
 
 interface LoginProps {
@@ -19,13 +18,26 @@ const Login: React.FC<LoginProps> = ({ onLogin, onNavigate }) => {
         setIsLoading(true);
         setError('');
 
+        // Simulasi pengecekan login
         setTimeout(() => {
             const users = JSON.parse(localStorage.getItem('usm_users') || '[]');
             const user = users.find((u: any) => u.email === email && u.password === password);
 
-            if (user || (email === 'admin@usm.ac.id' && password === 'admin')) {
-                const sessionUser = user || { name: 'Dr. Aris Subakti', role: 'Administrator', nip: '19850101' };
-                localStorage.setItem('currentUser', JSON.stringify(sessionUser));
+            // POINT PERUBAHAN: Menggunakan info@univsm.ac.id sebagai Super Admin
+            if (email === 'info@univsm.ac.id' && password === 'admin123') {
+                const adminUser = { 
+                    id: 'SA-01',
+                    name: 'Administrator Utama', 
+                    role: 'SUPER_ADMIN', 
+                    email: 'info@univsm.ac.id',
+                    nip: 'ADMIN-USM'
+                };
+                localStorage.setItem('currentUser', JSON.stringify(adminUser));
+                onLogin();
+            } 
+            // Pengecekan untuk user reguler (Pimpinan, Staf, Sekretaris) yang sudah mendaftar
+            else if (user) {
+                localStorage.setItem('currentUser', JSON.stringify(user));
                 onLogin();
             } else {
                 setError('Email atau kata sandi salah.');
@@ -46,7 +58,6 @@ const Login: React.FC<LoginProps> = ({ onLogin, onNavigate }) => {
                                 alt="Logo Universitas Sapta Mandiri" 
                                 className="h-28 w-auto object-contain drop-shadow-md"
                                 onError={(e) => {
-                                    // Fallback jika import gagal, tetap tampilkan icon standar
                                     (e.target as HTMLImageElement).src = "https://cdn-icons-png.flaticon.com/512/3070/3070014.png";
                                 }}
                             />
@@ -71,7 +82,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onNavigate }) => {
                                     type="email" 
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
-                                    placeholder="nama@univsm.ac.id"
+                                    placeholder="info@univsm.ac.id"
                                     className="w-full h-14 pl-12 pr-4 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-primary focus:bg-white transition-all text-sm font-medium"
                                 />
                             </div>
