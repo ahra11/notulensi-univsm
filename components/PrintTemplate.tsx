@@ -2,7 +2,7 @@ import React from 'react';
 import { Minute } from '../types';
 
 /**
- * Penomoran Otomatis Format Romawi
+ * Konversi Bulan ke Romawi untuk Nomor Surat
  * Format: Nomor/NOT/REK/BULAN/2026
  */
 const getRomanMonth = (dateString: string) => {
@@ -10,9 +10,7 @@ const getRomanMonth = (dateString: string) => {
     const date = new Date(dateString);
     const months = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII"];
     return months[date.getMonth()] || "I";
-  } catch (e) {
-    return "I";
-  }
+  } catch (e) { return "I"; }
 };
 
 const PrintTemplate: React.FC<{ data: Minute }> = ({ data }) => {
@@ -20,23 +18,23 @@ const PrintTemplate: React.FC<{ data: Minute }> = ({ data }) => {
   const romanMonth = getRomanMonth(data.date);
 
   return (
-    <div className="bg-white min-h-screen text-black font-serif p-0">
+    <div className="bg-white min-h-screen text-black font-serif print:p-0">
       
-      {/* HALAMAN 1: NOTULENSI UTAMA */}
-      <div className="p-10 flex flex-col min-h-screen border-b-2 border-dashed border-slate-200 print:border-none">
+      {/* HALAMAN 1: DOKUMEN NOTULENSI UTAMA */}
+      <div className="p-12 flex flex-col min-h-screen">
         
-        {/* --- KOP SURAT RESMI YAYASAN (Sesuai image_f167e3.png) --- */}
+        {/* --- KOP SURAT RESMI YAYASAN --- */}
         <div className="flex flex-col items-center border-b-[3px] border-black pb-1 mb-0.5">
           <div className="flex w-full items-center">
-            {/* Logo Universitas Sapta Mandiri */}
+            {/* Logo Universitas */}
             <div className="w-32 h-32 flex-shrink-0 flex items-center justify-center">
                <img src="/logo-usm.png" alt="Logo USM" className="w-24 h-24 object-contain" />
             </div>
             
-            <div className="flex-1 text-center pr-10">
+            <div className="flex-1 text-center pr-12">
               <h3 className="text-[16pt] font-bold leading-tight uppercase">YAYASAN SAPTA BAKTI PENDIDIKAN</h3>
-              <h1 className="text-[24pt] font-black leading-none uppercase tracking-tighter">UNIVERSITAS SAPTA MANDIRI</h1>
-              <h2 className="text-[14pt] font-bold leading-tight uppercase mt-1">SK Pendirian No. 661 / E / O / 2024</h2>
+              <h1 className="text-[22pt] font-black leading-none uppercase tracking-tighter">UNIVERSITAS SAPTA MANDIRI</h1>
+              <h2 className="text-[12pt] font-bold leading-tight uppercase mt-1">SK Pendirian No. 661 / E / O / 2024</h2>
               
               <div className="mt-2 text-[8pt] leading-tight font-normal italic normal-case">
                 <p>Kampus I : JL. A. Yani RT.07 Kel. Batu Piring Kec. Paringin Selatan Kab. Balangan Kalsel</p>
@@ -47,17 +45,18 @@ const PrintTemplate: React.FC<{ data: Minute }> = ({ data }) => {
             </div>
           </div>
         </div>
+        {/* Garis Ganda Kop Surat */}
         <div className="border-t border-black h-1 w-full mb-8"></div>
 
         {/* --- JUDUL & NOMOR SURAT --- */}
         <div className="text-center mb-8">
           <h2 className="text-[18pt] font-bold uppercase underline underline-offset-8">NOTULENSI RAPAT</h2>
-          <p className="text-[11pt] mt-4 font-bold">
+          <p className="text-[11pt] mt-4 font-bold tracking-wide">
             Nomor: {formattedId}/NOT/REK/{romanMonth}/2026
           </p>
         </div>
 
-        {/* --- DETAIL PELAKSANAAN --- */}
+        {/* --- DATA PELAKSANAAN --- */}
         <div className="space-y-4 mb-8 ml-10 text-[11pt]">
           <div className="grid grid-cols-[180px_20px_1fr]">
             <span className="font-bold">Nama Kegiatan</span>
@@ -67,7 +66,7 @@ const PrintTemplate: React.FC<{ data: Minute }> = ({ data }) => {
           <div className="grid grid-cols-[180px_20px_1fr]">
             <span className="font-bold">Agenda Utama</span>
             <span className="text-center">:</span>
-            <span className="italic">{data.agenda || "Terlampir dalam pembahasan"}</span>
+            <span className="italic">{data.agenda || "-"}</span>
           </div>
           <div className="grid grid-cols-[180px_20px_1fr]">
             <span className="font-bold">Hari / Tanggal</span>
@@ -81,81 +80,79 @@ const PrintTemplate: React.FC<{ data: Minute }> = ({ data }) => {
           </div>
         </div>
 
-        {/* --- RINGKASAN PEMBAHASAN --- */}
+        {/* --- ISI PEMBAHASAN (Tanpa Kotak/Border Digital) --- */}
         <div className="mt-4 ml-10 mr-10 flex-grow">
           <h3 className="font-bold uppercase text-[11pt] mb-4">RINGKASAN HASIL PEMBAHASAN:</h3>
-          <div className="text-[11pt] leading-relaxed whitespace-pre-wrap text-justify">
+          <div className="text-[11pt] leading-relaxed whitespace-pre-wrap text-justify border-none p-0">
             {data.content}
           </div>
         </div>
 
-        {/* --- TANDA TANGAN & PENGESAHAN --- */}
+        {/* --- AREA TANDA TANGAN (Bawah Halaman 1) --- */}
         <div className="mt-16 grid grid-cols-2 text-center text-[11pt]">
           <div className="flex flex-col items-center">
-            <p className="mb-24 uppercase font-bold">Notulis / Pelaksana,</p>
+            <p className="mb-24 uppercase font-bold tracking-tighter">Notulis / Pelaksana,</p>
             <p className="font-bold underline uppercase italic">( __________________________ )</p>
-            <p className="text-[9pt] mt-1">NIP. ......................................</p>
           </div>
           <div className="flex flex-col items-center">
             <p className="mb-4">Paringin, {data.date}</p>
             <p className="mb-20 font-bold uppercase leading-tight">Mengesahkan,<br/>Rektor Universitas Sapta Mandiri</p>
             <p className="font-bold underline uppercase">ABDUL HAMID, S.Kom., M.M., M.Kom</p>
-            <p className="text-[9pt] mt-1 font-bold">NIP. 1121069301</p>
+            <p className="text-[9pt] font-bold">NIP. 1121069301</p>
           </div>
         </div>
       </div>
 
-      {/* HALAMAN 2: LAMPIRAN FOTO & ABSENSI */}
-      <div className="p-10 break-before-page min-h-screen">
+      {/* HALAMAN 2: LAMPIRAN (Dokumentasi & Absensi) */}
+      <div className="p-12 break-before-page min-h-screen">
         <div className="text-center mb-10">
-          <h2 className="text-[14pt] font-bold uppercase underline">LAMPIRAN DOKUMENTASI & ABSENSI</h2>
+          <h2 className="text-[14pt] font-bold uppercase underline underline-offset-4">LAMPIRAN DOKUMENTASI & ABSENSI</h2>
         </div>
 
-        {/* I. FOTO KEGIATAN */}
+        {/* FOTO KEGIATAN */}
         <div className="mb-12">
-          <h3 className="font-bold uppercase border-b-2 border-black mb-6 pb-1 italic text-[11pt]">I. Dokumentasi Visual Kegiatan</h3>
+          <h3 className="font-bold uppercase border-b-2 border-black mb-6 pb-1 italic text-[11pt]">I. Dokumentasi Visual</h3>
           <div className="grid grid-cols-2 gap-8">
             {data.documentation && data.documentation.length > 0 ? (
               data.documentation.map((img, idx) => (
-                <div key={idx} className="border-4 border-slate-100 p-2 shadow-sm">
-                  <img src={img} alt="Dokumentasi" className="w-full h-56 object-cover mb-2" />
-                  <p className="text-center text-[9pt] italic">Lampiran Foto {idx + 1}</p>
+                <div key={idx} className="border p-2 bg-white">
+                  <img src={img} alt="Dokumentasi" className="w-full h-52 object-cover" />
+                  <p className="text-center text-[9pt] mt-2 italic">Foto Kegiatan {idx + 1}</p>
                 </div>
               ))
             ) : (
-              <div className="col-span-2 py-20 border-2 border-dashed text-center text-slate-400 italic">
-                Tidak ada dokumentasi visual yang dilampirkan.
+              <div className="col-span-2 py-10 text-center border-2 border-dashed italic text-gray-400">
+                Dokumentasi tidak tersedia.
               </div>
             )}
           </div>
         </div>
 
-        {/* II. DAFTAR HADIR / ABSENSI */}
+        {/* TABEL ABSENSI FORMAL */}
         <div>
           <h3 className="font-bold uppercase border-b-2 border-black mb-6 pb-1 italic text-[11pt]">II. Daftar Hadir Peserta</h3>
           <table className="w-full border-collapse border border-black text-[10pt]">
             <thead>
-              <tr className="bg-slate-50">
-                <th className="border border-black p-3 w-12 text-center">No.</th>
-                <th className="border border-black p-3 text-left">Nama Lengkap & Gelar</th>
-                <th className="border border-black p-3 text-left">Jabatan / Unit Kerja</th>
-                <th className="border border-black p-3 w-40 text-center">Tanda Tangan</th>
+              <tr className="bg-gray-50">
+                <th className="border border-black p-3 w-12">No.</th>
+                <th className="border border-black p-3 text-left">Nama & Gelar</th>
+                <th className="border border-black p-3 text-left">Jabatan</th>
+                <th className="border border-black p-3 w-36">Tanda Tangan</th>
               </tr>
             </thead>
             <tbody>
-              {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
+              {[1, 2, 3, 4, 5, 6].map((n) => (
                 <tr key={n} className="h-12">
-                  <td className="border border-black p-3 text-center font-bold">{n}.</td>
+                  <td className="border border-black p-3 text-center">{n}.</td>
                   <td className="border border-black p-3"></td>
                   <td className="border border-black p-3"></td>
-                  <td className="border border-black p-3 relative text-[8pt]">
-                     {n % 2 !== 0 ? `${n}. .............` : <span className="absolute right-4">{n}. .............</span>}
+                  <td className="border border-black p-3 text-[8pt]">
+                    {n % 2 !== 0 ? `${n}. ............` : <span className="pl-12 text-right">{n}. ............</span>}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-          <p className="text-[9pt] mt-4 italic text-slate-500">* Daftar hadir fisik asli tersimpan dalam arsip Rektorat.</p>
         </div>
       </div>
     </div>
