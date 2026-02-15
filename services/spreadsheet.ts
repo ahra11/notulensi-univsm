@@ -10,7 +10,6 @@ export const SpreadsheetService = {
     // BAGIAN 1: MANAJEMEN USER (Cloud Sync)
     // ==========================================
 
-    /** Mengambil semua data user/staf dari cloud */
     async getUsers(): Promise<any[]> {
         try {
             const response = await fetch(`${WEB_APP_URL}?action=getUsers&_t=${Date.now()}`);
@@ -24,17 +23,14 @@ export const SpreadsheetService = {
         }
     },
 
-    /** Menambah user baru (Dosen/Staf) */
     async addUser(user: any) {
         return this.postToCloud({ action: 'addUser', user });
     },
 
-    /** Memperbarui data user atau reset password */
     async updateUser(id: string, user: any) {
         return this.postToCloud({ action: 'updateUser', id, user });
     },
 
-    /** Menghapus user dari sistem */
     async deleteUser(id: string) {
         return this.postToCloud({ action: 'deleteUser', id });
     },
@@ -43,12 +39,20 @@ export const SpreadsheetService = {
     // BAGIAN 2: MANAJEMEN NOTULENSI (Minutes)
     // ==========================================
 
-    /** Menarik semua arsip notulensi untuk ditampilkan di riwayat */
+    /** * PERBAIKAN: Menambahkan nama fungsi 'fetchAll' agar sinkron dengan error di Console 
+     */
+    async fetchAll(): Promise<any[]> {
+        return this.fetchAllMinutes();
+    },
+
     async fetchAllMinutes(): Promise<any[]> {
         try {
             const response = await fetch(`${WEB_APP_URL}?actionType=read&_t=${Date.now()}`);
             const data = await response.json();
+            
+            // Memastikan data adalah array (ini kunci agar daftar notulensi muncul)
             const minutes = Array.isArray(data) ? data : [];
+            
             localStorage.setItem('usm_minutes_cache', JSON.stringify(minutes));
             return minutes;
         } catch (error) {
@@ -58,22 +62,18 @@ export const SpreadsheetService = {
         }
     },
 
-    /** Menyimpan notulensi baru (termasuk hasil pembahasan dan dokumentasi) */
     async saveMinute(data: any) {
         return this.postToCloud({ ...data, actionType: 'create' });
     },
 
-    /** Memperbarui isi notulensi yang sudah ada */
     async updateMinute(id: string, updates: any) {
         return this.postToCloud({ id, ...updates, actionType: 'update' });
     },
 
-    /** Menghapus notulensi dari cloud */
     async deleteMinute(id: string) {
         return this.postToCloud({ id, actionType: 'delete' });
     },
 
-    /** Fitur Khusus Rektor: Tanda Tangan Digital/Verifikasi Notulensi */
     async verifyMinute(id: string, verifierName: string) {
         return this.postToCloud({ 
             id, 
@@ -88,18 +88,15 @@ export const SpreadsheetService = {
     // UTILITY: PRIVATE POST METHOD
     // ==========================================
 
-    /** Fungsi internal untuk mengirim data ke Google Apps Script */
     async postToCloud(payload: any) {
         try {
             const response = await fetch(WEB_APP_URL, {
                 method: 'POST',
-                headers: { 'Content-Type': 'text/plain' }, // Penting untuk GAS
+                headers: { 'Content-Type': 'text/plain' }, 
                 body: JSON.stringify(payload)
             });
 
-            // Sinkronisasi Cache Lokal secara Optimistik agar UI langsung update
             this.syncLocalCache(payload);
-            
             return { success: true };
         } catch (error) {
             console.error("Cloud Sync Error:", error);
@@ -107,7 +104,6 @@ export const SpreadsheetService = {
         }
     },
 
-    /** Menjaga agar tampilan aplikasi tetap update meskipun internet lambat */
     syncLocalCache(payload: any) {
         if (payload.actionType) {
             let local = JSON.parse(localStorage.getItem('usm_minutes_cache') || '[]');
