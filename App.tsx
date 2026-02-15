@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Page, Minute } from './types';
 import Dashboard from './pages/Dashboard';
@@ -9,6 +8,10 @@ import Profile from './pages/Profile';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Reports from './pages/Reports';
+// 1. IMPORT HALAMAN BARU (Pastikan file ini sudah Anda buat di folder pages)
+import UserManagement from './pages/UserManagement'; 
+import Schedules from './pages/Schedules';
+
 import Navbar from './components/Navbar';
 import Sidebar from './components/Sidebar';
 
@@ -69,6 +72,13 @@ const App: React.FC = () => {
                 return <Reports onNavigate={navigateTo} />;
             case 'profile':
                 return <Profile onNavigate={navigateTo} onLogout={handleLogout} />;
+            
+            // 2. TAMBAHKAN CASE UNTUK HALAMAN MANAJEMEN USER DAN JADWAL
+            case 'users':
+                return <UserManagement onNavigate={navigateTo} />;
+            case 'schedules':
+                return <Schedules onNavigate={navigateTo} />;
+                
             default:
                 return <Dashboard onNavigate={navigateTo} />;
         }
