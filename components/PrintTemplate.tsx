@@ -1,10 +1,6 @@
 import React from 'react';
 import { Minute } from '../types';
 
-/**
- * Konversi Bulan ke Romawi untuk Nomor Surat
- * Format: Nomor/NOT/REK/BULAN/2026
- */
 const getRomanMonth = (dateString: string) => {
   try {
     const date = new Date(dateString);
@@ -18,141 +14,62 @@ const PrintTemplate: React.FC<{ data: Minute }> = ({ data }) => {
   const romanMonth = getRomanMonth(data.date);
 
   return (
-    <div className="bg-white min-h-screen text-black font-serif print:p-0">
-      
-      {/* HALAMAN 1: DOKUMEN NOTULENSI UTAMA */}
+    <div className="bg-white min-h-screen text-black font-serif p-0">
+      {/* --- HALAMAN 1: NOTULENSI --- */}
       <div className="p-12 flex flex-col min-h-screen">
         
-        {/* --- KOP SURAT RESMI YAYASAN --- */}
+        {/* KOP SURAT YAYASAN (PASTI BERUBAH) */}
         <div className="flex flex-col items-center border-b-[3px] border-black pb-1 mb-0.5">
           <div className="flex w-full items-center">
-            {/* Logo Universitas */}
             <div className="w-32 h-32 flex-shrink-0 flex items-center justify-center">
                <img src="/logo-usm.png" alt="Logo USM" className="w-24 h-24 object-contain" />
             </div>
-            
             <div className="flex-1 text-center pr-12">
               <h3 className="text-[16pt] font-bold leading-tight uppercase">YAYASAN SAPTA BAKTI PENDIDIKAN</h3>
               <h1 className="text-[22pt] font-black leading-none uppercase tracking-tighter">UNIVERSITAS SAPTA MANDIRI</h1>
               <h2 className="text-[12pt] font-bold leading-tight uppercase mt-1">SK Pendirian No. 661 / E / O / 2024</h2>
-              
-              <div className="mt-2 text-[8pt] leading-tight font-normal italic normal-case">
+              <div className="mt-2 text-[8pt] leading-tight font-normal italic">
                 <p>Kampus I : JL. A. Yani RT.07 Kel. Batu Piring Kec. Paringin Selatan Kab. Balangan Kalsel</p>
                 <p>Kampus II : JL. A. Yani KM. 5 Kel. Batu Piring Kec. Paringin Selatan Kab. Balangan Kalsel</p>
-                <p>Telp/Fax (0526) 209 5962 CP: 0877 7687 7462 Kode Pos : 71618</p>
-                <p>Website : www.univsm.ac.id | Email : info@univsm.ac.id</p>
+                <p>Telp/Fax (0526) 209 5962 CP: 0877 7687 7462 Kode Pos : 71618 | www.univsm.ac.id</p>
               </div>
             </div>
           </div>
         </div>
-        {/* Garis Ganda Kop Surat */}
         <div className="border-t border-black h-1 w-full mb-8"></div>
 
-        {/* --- JUDUL & NOMOR SURAT --- */}
         <div className="text-center mb-8">
           <h2 className="text-[18pt] font-bold uppercase underline underline-offset-8">NOTULENSI RAPAT</h2>
-          <p className="text-[11pt] mt-4 font-bold tracking-wide">
-            Nomor: {formattedId}/NOT/REK/{romanMonth}/2026
-          </p>
+          <p className="text-[11pt] mt-4 font-bold">Nomor: {formattedId}/NOT/REK/{romanMonth}/2026</p>
         </div>
 
-        {/* --- DATA PELAKSANAAN --- */}
+        {/* ISI DATA */}
         <div className="space-y-4 mb-8 ml-10 text-[11pt]">
           <div className="grid grid-cols-[180px_20px_1fr]">
-            <span className="font-bold">Nama Kegiatan</span>
-            <span className="text-center">:</span>
-            <span className="uppercase font-bold">{data.title}</span>
+            <span className="font-bold">Nama Kegiatan</span><span>:</span><span className="uppercase font-bold">{data.title}</span>
           </div>
           <div className="grid grid-cols-[180px_20px_1fr]">
-            <span className="font-bold">Agenda Utama</span>
-            <span className="text-center">:</span>
-            <span className="italic">{data.agenda || "-"}</span>
-          </div>
-          <div className="grid grid-cols-[180px_20px_1fr]">
-            <span className="font-bold">Hari / Tanggal</span>
-            <span className="text-center">:</span>
-            <span>{data.date}</span>
-          </div>
-          <div className="grid grid-cols-[180px_20px_1fr]">
-            <span className="font-bold">Tempat / Lokasi</span>
-            <span className="text-center">:</span>
-            <span>{data.location}</span>
+            <span className="font-bold">Hari / Tanggal</span><span>:</span><span>{data.date}</span>
           </div>
         </div>
 
-        {/* --- ISI PEMBAHASAN (Tanpa Kotak/Border Digital) --- */}
         <div className="mt-4 ml-10 mr-10 flex-grow">
-          <h3 className="font-bold uppercase text-[11pt] mb-4">RINGKASAN HASIL PEMBAHASAN:</h3>
-          <div className="text-[11pt] leading-relaxed whitespace-pre-wrap text-justify border-none p-0">
-            {data.content}
-          </div>
+          <h3 className="font-bold uppercase text-[11pt] mb-4">HASIL PEMBAHASAN:</h3>
+          <div className="text-[11pt] leading-relaxed whitespace-pre-wrap text-justify">{data.content}</div>
         </div>
 
-        {/* --- AREA TANDA TANGAN (Bawah Halaman 1) --- */}
+        {/* AREA TANDA TANGAN KOSONG (UNTUK TTD BASAH) */}
         <div className="mt-16 grid grid-cols-2 text-center text-[11pt]">
-          <div className="flex flex-col items-center">
-            <p className="mb-24 uppercase font-bold tracking-tighter">Notulis / Pelaksana,</p>
-            <p className="font-bold underline uppercase italic">( __________________________ )</p>
+          <div>
+            <p className="mb-24 uppercase font-bold">Notulis,</p>
+            <p className="font-bold underline uppercase">( __________________________ )</p>
           </div>
-          <div className="flex flex-col items-center">
+          <div>
             <p className="mb-4">Paringin, {data.date}</p>
-            <p className="mb-20 font-bold uppercase leading-tight">Mengesahkan,<br/>Rektor Universitas Sapta Mandiri</p>
-            <p className="font-bold underline uppercase">ABDUL HAMID, S.Kom., M.M., M.Kom</p>
-            <p className="text-[9pt] font-bold">NIP. 1121069301</p>
+            <p className="mb-20 font-bold uppercase">Mengesahkan,<br/>Rektor</p>
+            <p className="font-bold underline uppercase">( __________________________ )</p>
+            <p className="text-[9pt] mt-1">ABDUL HAMID, S.Kom., M.M., M.Kom</p>
           </div>
-        </div>
-      </div>
-
-      {/* HALAMAN 2: LAMPIRAN (Dokumentasi & Absensi) */}
-      <div className="p-12 break-before-page min-h-screen">
-        <div className="text-center mb-10">
-          <h2 className="text-[14pt] font-bold uppercase underline underline-offset-4">LAMPIRAN DOKUMENTASI & ABSENSI</h2>
-        </div>
-
-        {/* FOTO KEGIATAN */}
-        <div className="mb-12">
-          <h3 className="font-bold uppercase border-b-2 border-black mb-6 pb-1 italic text-[11pt]">I. Dokumentasi Visual</h3>
-          <div className="grid grid-cols-2 gap-8">
-            {data.documentation && data.documentation.length > 0 ? (
-              data.documentation.map((img, idx) => (
-                <div key={idx} className="border p-2 bg-white">
-                  <img src={img} alt="Dokumentasi" className="w-full h-52 object-cover" />
-                  <p className="text-center text-[9pt] mt-2 italic">Foto Kegiatan {idx + 1}</p>
-                </div>
-              ))
-            ) : (
-              <div className="col-span-2 py-10 text-center border-2 border-dashed italic text-gray-400">
-                Dokumentasi tidak tersedia.
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* TABEL ABSENSI FORMAL */}
-        <div>
-          <h3 className="font-bold uppercase border-b-2 border-black mb-6 pb-1 italic text-[11pt]">II. Daftar Hadir Peserta</h3>
-          <table className="w-full border-collapse border border-black text-[10pt]">
-            <thead>
-              <tr className="bg-gray-50">
-                <th className="border border-black p-3 w-12">No.</th>
-                <th className="border border-black p-3 text-left">Nama & Gelar</th>
-                <th className="border border-black p-3 text-left">Jabatan</th>
-                <th className="border border-black p-3 w-36">Tanda Tangan</th>
-              </tr>
-            </thead>
-            <tbody>
-              {[1, 2, 3, 4, 5, 6].map((n) => (
-                <tr key={n} className="h-12">
-                  <td className="border border-black p-3 text-center">{n}.</td>
-                  <td className="border border-black p-3"></td>
-                  <td className="border border-black p-3"></td>
-                  <td className="border border-black p-3 text-[8pt]">
-                    {n % 2 !== 0 ? `${n}. ............` : <span className="pl-12 text-right">{n}. ............</span>}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
         </div>
       </div>
     </div>
