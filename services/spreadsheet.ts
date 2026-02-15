@@ -2,7 +2,7 @@
  * Spreadsheet Service - Universitas Sapta Mandiri
  * Integrasi Full CRUD untuk Notulensi dan Manajemen User
  */
-const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz_R0sOiuJtztp2lz0DHkG40S755Gh389RZienuYXzpaPeNrbUmQMd5yErzBEsGx1mnnQ/exec"; 
+const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz_R0sOiuJtztp2lz0DHkG40S755Gh389RZienuYXzpaPeNrbUmQMd5yErzBEsGx1mnnQ/exec";
 
 export const SpreadsheetService = {
     // ==========================================
