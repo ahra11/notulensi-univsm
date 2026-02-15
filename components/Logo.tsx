@@ -29,10 +29,6 @@ const Logo: React.FC<LogoProps> = ({ className = "h-14", bw = false }) => {
         <div className="flex flex-col -mt-0.5">
           <span className={`font-bold tracking-[0.1em] text-[8px] uppercase ${bw ? 'text-black' : 'text-slate-500'}`}>
             Universitas Sapta Mandiri
-          </span>
-          <span className={`font-medium text-[6px] uppercase tracking-[0.05em] ${bw ? 'text-black' : 'text-slate-400'}`}>
-            Knowledge, Integrity, & Innovation
-          </span>
         </div>
       </div>
     </div>
