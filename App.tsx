@@ -8,7 +8,6 @@ import Profile from './pages/Profile';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Reports from './pages/Reports';
-// 1. IMPORT HALAMAN BARU (Pastikan file ini sudah Anda buat di folder pages)
 import UserManagement from './pages/UserManagement'; 
 import Schedules from './pages/Schedules';
 
@@ -19,9 +18,19 @@ const App: React.FC = () => {
     const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
         return localStorage.getItem('isLoggedIn') === 'true';
     });
+    
+    // State untuk data user yang sedang login
+    const [currentUser, setCurrentUser] = useState<any>(null);
     const [currentPage, setCurrentPage] = useState<Page>('dashboard');
     const [selectedMinute, setSelectedMinute] = useState<Minute | null>(null);
     const [editData, setEditData] = useState<Minute | null>(null);
+
+    useEffect(() => {
+        const userJson = localStorage.getItem('currentUser');
+        if (userJson) {
+            setCurrentUser(JSON.parse(userJson));
+        }
+    }, [isAuthenticated]);
 
     const navigateTo = (page: Page, data?: any) => {
         if (page === 'detail' && data) {
@@ -45,6 +54,7 @@ const App: React.FC = () => {
         localStorage.removeItem('isLoggedIn');
         localStorage.removeItem('currentUser');
         setCurrentPage('login');
+        setCurrentUser(null);
     };
 
     if (!isAuthenticated) {
@@ -73,9 +83,14 @@ const App: React.FC = () => {
             case 'profile':
                 return <Profile onNavigate={navigateTo} onLogout={handleLogout} />;
             
-            // 2. TAMBAHKAN CASE UNTUK HALAMAN MANAJEMEN USER DAN JADWAL
+            // PROTEKSI HALAMAN USER MANAGEMENT
             case 'users':
-                return <UserManagement onNavigate={navigateTo} />;
+                if (currentUser?.role === 'SUPER_ADMIN') {
+                    return <UserManagement onNavigate={navigateTo} />;
+                }
+                // Jika bukan Super Admin (Pimpinan/Staf/Sekretaris), lempar balik ke Dashboard
+                return <Dashboard onNavigate={navigateTo} />;
+            
             case 'schedules':
                 return <Schedules onNavigate={navigateTo} />;
                 
@@ -86,6 +101,7 @@ const App: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-background-light flex flex-col md:flex-row">
+            {/* Sidebar otomatis menyaring menu berdasarkan role yang login */}
             <div className="hidden md:block">
                 <Sidebar activePage={currentPage} onNavigate={navigateTo} onLogout={handleLogout} />
             </div>
