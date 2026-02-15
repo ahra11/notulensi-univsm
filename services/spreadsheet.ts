@@ -3,7 +3,7 @@
  * Sinkronisasi Online dengan Kontrol Pimpinan
  */
 
-const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxZTAAZKzaVH2kofzYfmg1W8aizdrqbIhrM_tAE1_Y4Ip6uOHpFWISEjX1FGv5gGEkVJQ/exec";
+const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzDb03Bz4h816au0iQEHLJpX9x3V2ZaVSUvBV4CVfhAmEPO7vEjLvo6UW55-4n-7r8Q/exec";
 
 export const SpreadsheetService = {
     async fetchAll(): Promise<any[]> {
