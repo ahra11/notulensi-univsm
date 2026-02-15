@@ -15,17 +15,17 @@ const Sidebar: React.FC<SidebarProps> = ({ activePage, onNavigate, onLogout }) =
         if (userJson) setUser(JSON.parse(userJson));
     }, []);
 
-    // Definisi semua menu yang mungkin ada
+    // Definisi navigasi dengan batasan akses yang diperketat
     const allNavItems = [
         { id: 'dashboard', label: 'Beranda', icon: 'home', roles: ['SUPER_ADMIN', 'PIMPINAN', 'SEKRETARIS', 'STAF'] },
         { id: 'schedules', label: 'Jadwal Rapat', icon: 'calendar_month', roles: ['SUPER_ADMIN', 'PIMPINAN', 'SEKRETARIS', 'STAF'] },
         { id: 'history', label: 'Arsip Notulensi', icon: 'history', roles: ['SUPER_ADMIN', 'PIMPINAN', 'SEKRETARIS', 'STAF'] },
-        { id: 'users', label: 'Manajemen User', icon: 'group', roles: ['SUPER_ADMIN', 'PIMPINAN'] },
+        // KHUSUS: Hanya SUPER_ADMIN yang bisa melihat Manajemen User
+        { id: 'users', label: 'Manajemen User', icon: 'group', roles: ['SUPER_ADMIN'] }, 
         { id: 'reports', label: 'Laporan & Statistik', icon: 'bar_chart', roles: ['SUPER_ADMIN', 'PIMPINAN'] },
         { id: 'profile', label: 'Profil Saya', icon: 'account_circle', roles: ['SUPER_ADMIN', 'PIMPINAN', 'SEKRETARIS', 'STAF'] },
     ];
 
-    // Filter menu berdasarkan role user yang login
     const filteredNavItems = allNavItems.filter(item => 
         user && item.roles.includes(user.role as UserRole)
     );
@@ -47,7 +47,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activePage, onNavigate, onLogout }) =
                     </p>
                 </div>
 
-                {/* Tombol Notulensi Baru: Disembunyikan jika role hanya Pimpinan (opsional) */}
+                {/* Tombol Buat Notulensi: Tersedia untuk semua role untuk efisiensi kerja */}
                 <button 
                     onClick={() => onNavigate('form')}
                     className="w-full flex items-center justify-center gap-2 py-4 bg-primary text-white rounded-2xl shadow-lg shadow-primary/20 font-bold text-sm uppercase tracking-widest hover:brightness-110 transition-all active:scale-95 mb-8"
@@ -88,7 +88,9 @@ const Sidebar: React.FC<SidebarProps> = ({ activePage, onNavigate, onLogout }) =
                     </div>
                     <div className="flex-1 min-w-0">
                         <p className="text-xs font-bold text-slate-900 truncate">{user ? user.name : 'Memuat...'}</p>
-                        <p className="text-[10px] text-slate-400 font-extrabold uppercase truncate">{user ? user.role.replace('_', ' ') : 'Civitas USM'}</p>
+                        <p className="text-[10px] text-slate-400 font-extrabold uppercase truncate">
+                            {user ? user.role.replace('_', ' ') : 'Civitas USM'}
+                        </p>
                     </div>
                     <button 
                         onClick={onLogout}
