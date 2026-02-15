@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Page, Minute } from '../types';
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, Modality } from "@google/genai";
 import { SpreadsheetService } from '../services/spreadsheet';
 
 interface MinutesFormProps {
@@ -26,11 +26,12 @@ const MinutesForm: React.FC<MinutesFormProps> = ({ onNavigate, initialData }) =>
     const [recordedAudioUrl, setRecordedAudioUrl] = useState<string | null>(null);
     
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-    // Fix: Use standard browser Blob instead of globalThis.Blob to avoid type mismatches
-    const audioChunksRef = useRef<Blob[]>([]);
+    // Explicitly use globalThis.Blob to avoid conflict with @google/genai's internal Blob type
+    const audioChunksRef = useRef<globalThis.Blob[]>([]);
 
     const isEditMode = !!initialData;
 
+    // Manual base64 decoding as per @google/genai guidelines
     const decodeBase64 = (base64: string) => {
         const binaryString = atob(base64);
         const len = binaryString.length;
@@ -41,6 +42,7 @@ const MinutesForm: React.FC<MinutesFormProps> = ({ onNavigate, initialData }) =>
         return bytes;
     };
 
+    // Manual audio decoding for raw PCM data as per @google/genai guidelines
     const decodeAudioData = async (data: Uint8Array, ctx: AudioContext, sampleRate: number, numChannels: number): Promise<AudioBuffer> => {
         const dataInt16 = new Int16Array(data.buffer);
         const frameCount = dataInt16.length / numChannels;
@@ -64,7 +66,7 @@ const MinutesForm: React.FC<MinutesFormProps> = ({ onNavigate, initialData }) =>
                 model: "gemini-2.5-flash-preview-tts",
                 contents: { parts: [{ text: `Bacakan hasil rapat ini: ${notulensi.substring(0, 1000)}` }] },
                 config: {
-                    responseModalities: ["AUDIO"],
+                    responseModalities: [Modality.AUDIO],
                     speechConfig: {
                         voiceConfig: {
                             prebuiltVoiceConfig: { voiceName: 'Kore' },
@@ -102,8 +104,8 @@ const MinutesForm: React.FC<MinutesFormProps> = ({ onNavigate, initialData }) =>
             audioChunksRef.current = [];
             mediaRecorder.ondataavailable = (event) => { if (event.data.size > 0) audioChunksRef.current.push(event.data); };
             mediaRecorder.onstop = async () => {
-                // Fix: Use standard browser Blob constructor to avoid type ambiguity
-                const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+                // Use globalThis.Blob to ensure we are using the browser's native Blob constructor and type
+                const audioBlob = new globalThis.Blob(audioChunksRef.current, { type: 'audio/webm' });
                 const url = URL.createObjectURL(audioBlob);
                 setRecordedAudioUrl(url);
                 await transcribeAudio(audioBlob);
@@ -122,8 +124,8 @@ const MinutesForm: React.FC<MinutesFormProps> = ({ onNavigate, initialData }) =>
         }
     };
 
-    // Fix: Parameter type updated to standard Blob to match browser's FileReader expectations
-    const transcribeAudio = async (audioBlob: Blob) => {
+    // Use globalThis.Blob for the parameter type to ensure consistency with the native API
+    const transcribeAudio = async (audioBlob: globalThis.Blob) => {
         setIsTranscribing(true);
         setStatusMessage("AI sedang merangkum hasil rapat...");
         try {

@@ -7,7 +7,7 @@ interface LogoProps {
 }
 
 const Logo: React.FC<LogoProps> = ({ className = "h-14", bw = false }) => {
-  // Menggunakan logo resmi Universitas Sapta Mandiri
+  // Logo Utama USM
   const logoUrl = "https://univsm.ac.id/wp-content/uploads/2023/08/cropped-logo-univsm-1.png";
 
   return (
@@ -16,7 +16,7 @@ const Logo: React.FC<LogoProps> = ({ className = "h-14", bw = false }) => {
         <img 
           src={logoUrl} 
           alt="Logo Universitas Sapta Mandiri" 
-          className={`h-full w-auto object-contain transition-all ${bw ? 'grayscale brightness-0' : ''}`}
+          className={`h-full w-auto object-contain transition-all ${bw ? 'grayscale contrast-125' : ''}`}
           onError={(e) => {
             (e.target as HTMLImageElement).src = "https://cdn-icons-png.flaticon.com/512/3070/3070014.png";
           }}
