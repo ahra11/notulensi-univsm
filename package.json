@@ -9,10 +9,12 @@
     "build": "vite build",
     "preview": "vite preview"
   },
-  "dependencies": {
+"dependencies": {
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "@google/genai": "^1.41.0"
+    "@google/genai": "^1.41.0",
+    "react-to-print": "^2.14.15"
+  }
   },
   "devDependencies": {
     "@types/react": "^19.0.0",
