@@ -1,4 +1,6 @@
 import React from 'react';
+// Berdasarkan gambar repositori GitHub Anda, logo berada di root atau satu folder di atas file ini
+import logoUSM from '../logo-usm.png'; 
 import { Minute, Page } from '../types';
 
 interface MinutesDetailProps {
@@ -7,19 +9,15 @@ interface MinutesDetailProps {
 }
 
 const MinutesDetail: React.FC<MinutesDetailProps> = ({ minute, onNavigate }) => {
+    // Memproses konten rapat menjadi poin-poin list
     const discussionPoints = typeof minute.content === 'string' 
         ? minute.content.split('\n').filter(p => p.trim())
         : (minute.content || []);
 
-    /** * PENTING: Ganti path di bawah ini dengan path logo resmi Anda.
-     * Jika diletakkan di folder 'public', gunakan "/logo-usm.png"
-     */
-    const logoUrl = "/logo-usm.png"; 
-
     return (
         <div className="min-h-screen bg-slate-100/50 print:bg-white pb-24 print:pb-0 font-serif relative">
             
-            {/* Action Bar */}
+            {/* Action Bar (Hanya muncul di browser, hilang saat diprint) */}
             <div className="fixed top-8 left-1/2 -translate-x-1/2 flex items-center gap-1.5 p-2 bg-white/80 backdrop-blur-xl border border-slate-200 rounded-2xl shadow-2xl no-print z-[100] transition-all hover:scale-[1.02]">
                 <button 
                     onClick={() => onNavigate('history')} 
@@ -28,7 +26,9 @@ const MinutesDetail: React.FC<MinutesDetailProps> = ({ minute, onNavigate }) => 
                     <span className="material-symbols-outlined text-xl">arrow_back</span>
                     <span className="text-[10px] font-extrabold uppercase tracking-widest">Kembali</span>
                 </button>
+                
                 <div className="w-px h-8 bg-slate-200 mx-1"></div>
+                
                 <button 
                     onClick={() => window.print()} 
                     className="flex items-center gap-3 px-8 py-2.5 bg-slate-900 text-white rounded-xl shadow-lg hover:bg-black transition-all"
@@ -38,17 +38,17 @@ const MinutesDetail: React.FC<MinutesDetailProps> = ({ minute, onNavigate }) => 
                 </button>
             </div>
 
-            {/* Container Dokumen (A4) */}
+            {/* Container Dokumen (Format A4) */}
             <div className="max-w-[210mm] mx-auto bg-white shadow-2xl md:my-16 p-[15mm] md:p-[20mm] print:shadow-none print:m-0 print:p-0">
                 
-                {/* Official USM Letterhead - Sesuai image_ab01e4.png */}
+                {/* Official USM Letterhead (Berdasarkan gambar image_ab01e4.png) */}
                 <div className="flex items-center gap-5 pb-2 mb-8 border-b-[4px] border-black border-double">
                     <img 
-                        src={logoUrl} 
+                        src={logoUSM} 
                         alt="Logo Resmi UNIVSM" 
                         className="h-28 w-auto object-contain shrink-0" 
                         onError={(e) => {
-                            // Fallback jika logo tidak ditemukan
+                            // Fallback jika logo tetap tidak terbaca
                             (e.target as HTMLImageElement).src = "https://cdn-icons-png.flaticon.com/512/3070/3070014.png";
                         }}
                     />
@@ -77,7 +77,7 @@ const MinutesDetail: React.FC<MinutesDetailProps> = ({ minute, onNavigate }) => 
 
                 {/* Judul Notulensi */}
                 <div className="text-center mb-10">
-                    <h3 className="text-[14pt] font-bold uppercase underline decoration-[1.5pt] underline-offset-8" style={{ fontFamily: 'Times New Roman, serif' }}>
+                    <h3 className="text-[14pt] font-bold uppercase underline underline-offset-8" style={{ fontFamily: 'Times New Roman, serif' }}>
                         NOTULENSI RAPAT
                     </h3>
                     <p className="text-[11pt] mt-3">Nomor: {minute.id}/UNIVSM/BAA/{new Date().getFullYear()}</p>
@@ -93,7 +93,7 @@ const MinutesDetail: React.FC<MinutesDetailProps> = ({ minute, onNavigate }) => 
                     <div className="flex items-start">
                         <span className="font-bold w-44 shrink-0">Agenda Utama</span>
                         <span className="w-4 shrink-0">:</span>
-                        <span className="font-medium italic">{minute.agenda || 'pembahasan dan penyesuaian teknis PMB'}</span>
+                        <span className="font-medium italic">{minute.agenda || 'Pembahasan Koordinasi Internal'}</span>
                     </div>
                     <div className="flex items-start">
                         <span className="font-bold w-44 shrink-0">Hari / Tanggal</span>
@@ -103,11 +103,11 @@ const MinutesDetail: React.FC<MinutesDetailProps> = ({ minute, onNavigate }) => 
                     <div className="flex items-start">
                         <span className="font-bold w-44 shrink-0">Tempat / Lokasi</span>
                         <span className="w-4 shrink-0">:</span>
-                        <span>{minute.location || 'Ruang Rapat Yayasan'}</span>
+                        <span>{minute.location || 'Ruang Rapat Kampus Utama'}</span>
                     </div>
                 </div>
 
-                {/* Ringkasan Hasil */}
+                {/* Isi Ringkasan Rapat */}
                 <div className="min-h-[400px] mb-16" style={{ fontFamily: 'Times New Roman, serif' }}>
                     <h4 className="text-[11pt] font-bold uppercase mb-6">RINGKASAN HASIL PEMBAHASAN:</h4>
                     <div className="space-y-4 text-[11pt] leading-relaxed text-justify">
@@ -120,7 +120,7 @@ const MinutesDetail: React.FC<MinutesDetailProps> = ({ minute, onNavigate }) => 
                     </div>
                 </div>
 
-                {/* Tanda Tangan */}
+                {/* Penandatanganan */}
                 <div className="grid grid-cols-2 gap-32 text-[11pt]" style={{ fontFamily: 'Times New Roman, serif' }}>
                     <div className="text-center">
                         <p className="font-bold mb-28 uppercase">MENGETAHUI / MENGESAHKAN,</p>
@@ -137,6 +137,7 @@ const MinutesDetail: React.FC<MinutesDetailProps> = ({ minute, onNavigate }) => 
                 </div>
             </div>
 
+            {/* In-component CSS khusus cetak */}
             <style>{`
                 @media print {
                     @page { margin: 1.5cm; size: A4; }
