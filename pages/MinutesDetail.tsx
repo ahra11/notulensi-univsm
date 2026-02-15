@@ -15,7 +15,7 @@ const MinutesDetail: React.FC<MinutesDetailProps> = ({ minute, onNavigate }) => 
     // Gunakan logo grayscale untuk kesan hitam putih yang Anda minta
     // Anda bisa mengganti URL ini dengan URL raw dari GitHub Anda: 
     // misal: https://raw.githubusercontent.com/username/repo/main/Gambar%20Logo%20hitam%20putih%20Univsm.png
-    const logoUrl = "https://univsm.ac.id/wp-content/uploads/2023/08/cropped-logo-univsm-1.png";
+    const logoUrl = "https://drive.google.com/file/d/1EOW7ThAe7HIXfuL1R9BPxMxiCKGHc6r8/view?usp=sharing";
 
     return (
         <div className="min-h-screen bg-slate-100/50 print:bg-white pb-24 print:pb-0 font-serif relative">
@@ -54,9 +54,8 @@ const MinutesDetail: React.FC<MinutesDetailProps> = ({ minute, onNavigate }) => 
                             className="h-20 w-auto object-contain grayscale contrast-125 brightness-90" 
                         />
                         <div className="flex-1 text-center pr-10">
-                            <h1 className="text-lg font-black uppercase tracking-normal leading-tight">YAYASAN SAPTA MANDIRI</h1>
+                            <h1 className="text-lg font-black uppercase tracking-normal leading-tight">YAYASAN SAPTA BAKTI PENDIDIKAN</h1>
                             <h1 className="text-xl font-black uppercase tracking-tight leading-tight">UNIVERSITAS SAPTA MANDIRI</h1>
-                            <p className="text-[9pt] font-bold uppercase tracking-widest mt-1">BIRO ADMINISTRASI UMUM, KEPEGAWAIAN DAN AKADEMIK</p>
                             <p className="text-[7.5pt] font-medium leading-tight italic mt-2 border-t border-black/10 pt-1">
                                 Kampus Utama: Jalan A. Yani Km 1,5 Depan, Lingsir, Kec. Paringin Selatan,<br/>
                                 Kabupaten Balangan, Kalimantan Selatan 71618 | Website: www.univsm.ac.id
