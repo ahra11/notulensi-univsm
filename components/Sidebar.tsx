@@ -15,12 +15,12 @@ const Sidebar: React.FC<SidebarProps> = ({ activePage, onNavigate, onLogout }) =
         if (userJson) setUser(JSON.parse(userJson));
     }, []);
 
-    // Definisi navigasi dengan batasan akses yang diperketat
+    // Konfigurasi Navigasi sesuai Gambar
     const allNavItems = [
         { id: 'dashboard', label: 'Beranda', icon: 'home', roles: ['SUPER_ADMIN', 'PIMPINAN', 'SEKRETARIS', 'STAF'] },
-        { id: 'schedules', label: 'Jadwal Rapat', icon: 'calendar_month', roles: ['SUPER_ADMIN', 'PIMPINAN', 'SEKRETARIS', 'STAF'] },
+        { id: 'schedules', label: 'Jadwal Rapat', icon: 'calendar_today', roles: ['SUPER_ADMIN', 'PIMPINAN', 'SEKRETARIS', 'STAF'] },
         { id: 'history', label: 'Arsip Notulensi', icon: 'history', roles: ['SUPER_ADMIN', 'PIMPINAN', 'SEKRETARIS', 'STAF'] },
-        // KHUSUS: Hanya SUPER_ADMIN yang bisa melihat Manajemen User
+        // HANYA UNTUK SUPER_ADMIN
         { id: 'users', label: 'Manajemen User', icon: 'group', roles: ['SUPER_ADMIN'] }, 
         { id: 'reports', label: 'Laporan & Statistik', icon: 'bar_chart', roles: ['SUPER_ADMIN', 'PIMPINAN'] },
         { id: 'profile', label: 'Profil Saya', icon: 'account_circle', roles: ['SUPER_ADMIN', 'PIMPINAN', 'SEKRETARIS', 'STAF'] },
@@ -37,64 +37,73 @@ const Sidebar: React.FC<SidebarProps> = ({ activePage, onNavigate, onLogout }) =
 
     return (
         <aside className="fixed left-0 top-0 h-full w-64 lg:w-72 bg-white border-r border-slate-100 flex flex-col z-50">
-            <div className="p-6 overflow-y-auto flex-1">
-                <div className="flex flex-col gap-1 mb-8">
-                    <h1 className="text-primary font-bold leading-tight text-sm uppercase tracking-tight">Universitas Sapta Mandiri</h1>
-                    <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wider flex items-center gap-1">
-                        Portal Notulensi Digital 
-                        {user?.role === 'SUPER_ADMIN' && <span className="text-red-500 font-black">● Admin</span>}
-                        {user?.role === 'PIMPINAN' && <span className="text-amber-500 font-black">● Pimpinan</span>}
-                    </p>
+            {/* Header Sidebar sesuai Gambar */}
+            <div className="p-6">
+                <div className="flex flex-col mb-8">
+                    <h1 className="text-slate-900 font-black leading-tight text-xs uppercase tracking-tighter">
+                        Universitas Sapta Mandiri
+                    </h1>
+                    <div className="flex items-center gap-1">
+                        <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">
+                            Portal Notulensi Digital
+                        </p>
+                        {user?.role === 'SUPER_ADMIN' && (
+                            <span className="text-[8px] font-black text-red-500 uppercase italic">● Admin</span>
+                        )}
+                    </div>
                 </div>
 
-                {/* Tombol Buat Notulensi: Tersedia untuk semua role untuk efisiensi kerja */}
+                {/* Tombol Action Utama */}
                 <button 
                     onClick={() => onNavigate('form')}
-                    className="w-full flex items-center justify-center gap-2 py-4 bg-primary text-white rounded-2xl shadow-lg shadow-primary/20 font-bold text-sm uppercase tracking-widest hover:brightness-110 transition-all active:scale-95 mb-8"
+                    className="w-full flex items-center justify-center gap-3 py-3.5 bg-[#252859] text-white rounded-xl shadow-lg shadow-indigo-900/20 font-bold text-[11px] uppercase tracking-widest hover:brightness-110 transition-all active:scale-95 mb-10"
                 >
-                    <span className="material-symbols-outlined">add</span>
+                    <span className="material-symbols-outlined text-lg">add</span>
                     <span>Notulensi Baru</span>
                 </button>
 
-                <nav className="space-y-1.5">
+                {/* Navigasi List */}
+                <nav className="space-y-1">
                     {filteredNavItems.map((item) => {
                         const isActive = activePage === item.id;
                         return (
                             <button
                                 key={item.id}
                                 onClick={() => onNavigate(item.id as Page)}
-                                className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all ${
+                                className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all ${
                                     isActive 
-                                    ? 'bg-primary text-white shadow-md shadow-primary/20' 
+                                    ? 'bg-[#252859] text-white shadow-md' 
                                     : 'text-slate-500 hover:bg-slate-50'
                                 }`}
                             >
-                                <span className={`material-symbols-outlined ${isActive ? 'material-symbols-fill' : ''}`}>
+                                <span className={`material-symbols-outlined text-xl ${isActive ? 'material-symbols-fill' : ''}`}>
                                     {item.icon}
                                 </span>
-                                <span className="text-sm font-semibold">{item.label}</span>
+                                <span className="text-[13px] font-bold">{item.label}</span>
                             </button>
                         );
                     })}
                 </nav>
             </div>
 
-            <div className="p-6 border-t border-slate-50">
-                <div className="flex items-center gap-3 p-2 rounded-2xl bg-slate-50">
-                    <div className={`size-10 rounded-full flex items-center justify-center font-bold text-xs shadow-inner 
-                        ${user?.role === 'SUPER_ADMIN' ? 'bg-red-500 text-white' : 
-                          user?.role === 'PIMPINAN' ? 'bg-amber-500 text-white' : 'bg-primary text-white'}`}>
+            {/* User Profile Section di Bawah Sidebar */}
+            <div className="mt-auto p-4 border-t border-slate-50 bg-slate-50/50">
+                <div className="flex items-center gap-3">
+                    <div className={`size-10 rounded-full flex items-center justify-center font-black text-xs shadow-sm 
+                        ${user?.role === 'SUPER_ADMIN' ? 'bg-red-500 text-white' : 'bg-[#252859] text-white'}`}>
                         {user ? getInitials(user.name) : 'USM'}
                     </div>
                     <div className="flex-1 min-w-0">
-                        <p className="text-xs font-bold text-slate-900 truncate">{user ? user.name : 'Memuat...'}</p>
-                        <p className="text-[10px] text-slate-400 font-extrabold uppercase truncate">
+                        <p className="text-[11px] font-black text-slate-900 truncate">
+                            {user ? user.name : 'Memuat...'}
+                        </p>
+                        <p className="text-[9px] text-slate-400 font-black uppercase truncate">
                             {user ? user.role.replace('_', ' ') : 'Civitas USM'}
                         </p>
                     </div>
                     <button 
                         onClick={onLogout}
-                        className="material-symbols-outlined text-slate-300 hover:text-red-500 transition-colors"
+                        className="material-symbols-outlined text-slate-300 hover:text-red-500 transition-colors text-lg"
                     >
                         logout
                     </button>
