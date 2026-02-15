@@ -32,20 +32,18 @@ const MinutesDetail: React.FC<MinutesDetailProps> = ({ minute, onNavigate }) => 
             alert('Notulensi berhasil diverifikasi secara digital!');
         } catch (error) {
             console.error("Gagal verifikasi:", error);
-            alert('Gagal menyambungkan ke Cloud.');
         } finally {
             setIsVerifying(false);
         }
     };
 
-    // FITUR: Cetak ke PDF
     const handlePrint = () => {
         window.print();
     };
 
     return (
         <div className="p-4 md:p-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-            {/* Action Bar - Elemen ini akan disembunyikan saat cetak */}
+            {/* Action Bar */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 print:hidden">
                 <button 
                     onClick={() => onNavigate('history')}
@@ -60,34 +58,31 @@ const MinutesDetail: React.FC<MinutesDetailProps> = ({ minute, onNavigate }) => 
                         <button 
                             disabled={isVerifying}
                             onClick={handleVerify}
-                            className="flex items-center gap-2 px-6 py-2.5 bg-amber-500 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-amber-500/20 hover:brightness-110 transition-all"
+                            className="flex items-center gap-2 px-6 py-2.5 bg-amber-500 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-amber-500/20"
                         >
-                            <span className="material-symbols-outlined text-sm">
-                                {isVerifying ? 'sync' : 'verified_user'}
-                            </span>
+                            <span className="material-symbols-outlined text-sm">{isVerifying ? 'sync' : 'verified_user'}</span>
                             {isVerifying ? 'Memproses...' : 'Verifikasi & Tanda Tangan'}
                         </button>
                     )}
                     
                     <button 
                         onClick={handlePrint}
-                        className="flex items-center gap-2 px-4 py-2.5 bg-[#252859] text-white rounded-xl font-bold text-xs hover:bg-black transition-all"
+                        className="flex items-center gap-2 px-4 py-2.5 bg-[#252859] text-white rounded-xl font-bold text-xs"
                     >
                         <span className="material-symbols-outlined text-sm">print</span>
-                        Cetak Notulensi
+                        Cetak PDF
                     </button>
                 </div>
             </div>
 
-            {/* AREA CETAK DOKUMEN */}
+            {/* AREA CETAK */}
             <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden print:border-none print:shadow-none print:rounded-none">
                 
-                {/* Kop Surat Institusi (Hanya muncul saat cetak) */}
-                <div className="hidden print:flex flex-row items-center justify-center border-b-4 border-double border-slate-900 pb-4 mb-8 gap-6 text-center">
+                {/* Kop Surat Institusi */}
+                <div className="hidden print:flex flex-row items-center justify-center border-b-4 border-double border-slate-900 pb-4 mb-8 text-center">
                     <div className="flex flex-col">
                         <h1 className="text-xl font-black uppercase tracking-tight">Universitas Sapta Mandiri</h1>
-                        <p className="text-[10px] font-bold">Jalan A. Yani Km 1,5, Kabupaten Balangan, Kalimantan Selatan</p>
-                        <p className="text-[10px] italic">Email: info@univsm.ac.id | Portal Notulensi Digital</p>
+                        <p className="text-[10px] font-bold">Portal Notulensi Digital - Kabupaten Balangan</p>
                     </div>
                 </div>
 
@@ -95,15 +90,14 @@ const MinutesDetail: React.FC<MinutesDetailProps> = ({ minute, onNavigate }) => 
                 <div className="p-8 md:p-12 border-b border-slate-50 bg-slate-50/30 print:bg-transparent print:p-0 print:mb-8">
                     <div className="flex flex-col md:flex-row justify-between items-start gap-6">
                         <div className="space-y-2">
-                            <h2 className="text-3xl font-black text-slate-900 leading-tight print:text-2xl">{currentMinute.title}</h2>
-                            <p className="text-slate-500 font-bold uppercase text-[10px] tracking-widest">
-                                Tanggal: {currentMinute.date} | Lokasi: {currentMinute.location}
+                            <h2 className="text-3xl font-black text-slate-900 print:text-2xl">{currentMinute.title}</h2>
+                            <p className="text-slate-500 font-bold uppercase text-[10px]">
+                                {currentMinute.date} | {currentMinute.location}
                             </p>
                         </div>
                         
                         {currentMinute.status === 'SIGNED' && (
-                            <div className="flex items-center gap-4 p-4 border-2 border-green-500/20 rounded-3xl bg-green-50/50 print:border-green-600 print:p-2">
-                                <span className="material-symbols-outlined text-4xl text-green-500 print:hidden">verified</span>
+                            <div className="flex items-center gap-4 p-4 border-2 border-green-500/20 rounded-3xl bg-green-50/50 print:border-green-600">
                                 <div>
                                     <p className="text-[8px] font-black text-green-600 uppercase">Verified Digitally By</p>
                                     <p className="text-xs font-black text-slate-800">{currentMinute.signedBy}</p>
@@ -118,45 +112,55 @@ const MinutesDetail: React.FC<MinutesDetailProps> = ({ minute, onNavigate }) => 
                 <div className="p-8 md:p-12 space-y-10 print:p-0">
                     <section>
                         <h3 className="text-[10px] font-black text-[#252859] uppercase tracking-[0.2em] mb-4 border-l-4 border-[#252859] pl-3">Agenda Rapat</h3>
-                        <div className="text-slate-700 leading-relaxed font-medium whitespace-pre-wrap">
-                            {currentMinute.agenda}
-                        </div>
+                        <div className="text-slate-700 leading-relaxed font-medium whitespace-pre-wrap">{currentMinute.agenda}</div>
                     </section>
 
                     <section>
                         <h3 className="text-[10px] font-black text-[#252859] uppercase tracking-[0.2em] mb-4 border-l-4 border-[#252859] pl-3">Hasil Pembahasan</h3>
-                        <div className="text-slate-600 leading-loose whitespace-pre-wrap">
-                            {currentMinute.content}
-                        </div>
+                        <div className="text-slate-600 leading-loose whitespace-pre-wrap">{currentMinute.content}</div>
                     </section>
 
-                    {/* Footer & Tanda Tangan */}
+                    {/* BAGIAN DOKUMENTASI (BARU) */}
+                    {currentMinute.documentation && currentMinute.documentation.length > 0 && (
+                        <section className="print:break-before-page pt-10">
+                            <h3 className="text-[10px] font-black text-[#252859] uppercase tracking-[0.2em] mb-4 border-l-4 border-[#252859] pl-3">Dokumentasi Kegiatan</h3>
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                                {currentMinute.documentation.map((img, index) => (
+                                    <div key={index} className="aspect-video rounded-2xl overflow-hidden border border-slate-100 shadow-sm">
+                                        <img src={img} alt={`Dokumentasi ${index + 1}`} className="w-full h-full object-cover" />
+                                    </div>
+                                ))}
+                            </div>
+                        </section>
+                    )}
+
+                    {/* Footer Tanda Tangan */}
                     <div className="pt-20 flex justify-between items-start gap-12 print:mt-10">
-                        <div className="text-center">
-                            <p className="text-[9px] font-black text-slate-400 uppercase mb-16">Notulis / Sekretaris</p>
+                        <div className="text-center min-w-[150px]">
+                            <p className="text-[9px] font-black text-slate-400 uppercase mb-16">Notulis</p>
                             <p className="text-sm font-bold text-slate-900 border-b border-slate-900 pb-1">{currentMinute.submittedBy}</p>
                         </div>
 
-                        <div className="text-center">
+                        <div className="text-center min-w-[150px]">
                             <p className="text-[9px] font-black text-slate-400 uppercase mb-16">Mengesahkan, Rektor</p>
                             {currentMinute.status === 'SIGNED' ? (
                                 <div className="flex flex-col items-center">
                                     <p className="text-sm font-bold text-slate-900 border-b border-slate-900 pb-1">{currentMinute.signedBy}</p>
-                                    <p className="text-[7px] text-green-600 font-bold italic mt-1 uppercase tracking-tighter">Verified Electronic Signature</p>
+                                    <p className="text-[7px] text-green-600 font-black italic mt-1 uppercase">Digital Signature Verified</p>
                                 </div>
                             ) : (
-                                <div className="h-10 border-b border-dashed border-slate-300 w-32"></div>
+                                <div className="h-10 border-b border-dashed border-slate-300 w-full"></div>
                             )}
                         </div>
                     </div>
                 </div>
             </div>
 
-            {/* CSS KHUSUS PRINT */}
             <style dangerouslySetInnerHTML={{ __html: `
                 @media print {
                     body { background: white !important; }
                     .print\\:hidden { display: none !important; }
+                    .print\\:break-before-page { break-before: page; }
                     @page { margin: 2cm; }
                 }
             `}} />
