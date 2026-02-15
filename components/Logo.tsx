@@ -8,7 +8,7 @@ interface LogoProps {
 
 const Logo: React.FC<LogoProps> = ({ className = "h-14", bw = false }) => {
   // Logo Utama USM
-  const logoUrl = "https://univsm.ac.id/wp-content/uploads/2023/08/cropped-logo-univsm-1.png";
+  const logoUrl = "https://drive.google.com/file/d/1EOW7ThAe7HIXfuL1R9BPxMxiCKGHc6r8/view?usp=sharing";
 
   return (
     <div className={`flex items-center gap-4 ${className}`}>
