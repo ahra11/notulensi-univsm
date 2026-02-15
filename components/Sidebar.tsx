@@ -15,12 +15,12 @@ const Sidebar: React.FC<SidebarProps> = ({ activePage, onNavigate, onLogout }) =
         if (userJson) setUser(JSON.parse(userJson));
     }, []);
 
-    // Konfigurasi Navigasi sesuai Gambar
+    // Konfigurasi Navigasi: 'users' hanya untuk SUPER_ADMIN
     const allNavItems = [
         { id: 'dashboard', label: 'Beranda', icon: 'home', roles: ['SUPER_ADMIN', 'PIMPINAN', 'SEKRETARIS', 'STAF'] },
         { id: 'schedules', label: 'Jadwal Rapat', icon: 'calendar_today', roles: ['SUPER_ADMIN', 'PIMPINAN', 'SEKRETARIS', 'STAF'] },
         { id: 'history', label: 'Arsip Notulensi', icon: 'history', roles: ['SUPER_ADMIN', 'PIMPINAN', 'SEKRETARIS', 'STAF'] },
-        // HANYA UNTUK SUPER_ADMIN
+        // KHUSUS: Hanya SUPER_ADMIN yang bisa melihat Manajemen User
         { id: 'users', label: 'Manajemen User', icon: 'group', roles: ['SUPER_ADMIN'] }, 
         { id: 'reports', label: 'Laporan & Statistik', icon: 'bar_chart', roles: ['SUPER_ADMIN', 'PIMPINAN'] },
         { id: 'profile', label: 'Profil Saya', icon: 'account_circle', roles: ['SUPER_ADMIN', 'PIMPINAN', 'SEKRETARIS', 'STAF'] },
@@ -47,8 +47,12 @@ const Sidebar: React.FC<SidebarProps> = ({ activePage, onNavigate, onLogout }) =
                         <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">
                             Portal Notulensi Digital
                         </p>
+                        {/* Indikator Role Dinamis */}
                         {user?.role === 'SUPER_ADMIN' && (
                             <span className="text-[8px] font-black text-red-500 uppercase italic">● Admin</span>
+                        )}
+                        {user?.role === 'PIMPINAN' && (
+                            <span className="text-[8px] font-black text-amber-500 uppercase italic">● Pimpinan</span>
                         )}
                     </div>
                 </div>
