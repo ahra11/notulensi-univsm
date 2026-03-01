@@ -57,8 +57,17 @@ export const SpreadsheetService = {
         });
     },
 
+    // INI FUNGSI YANG BARU DITAMBAHKAN AGAR TOMBOL HAPUS BERFUNGSI
+    async deleteData(id: string) {
+        console.log(`Menghapus data dengan ID: ${id}`);
+        return this.postToCloud({ 
+            id: id, 
+            actionType: 'delete' 
+        });
+    },
+
     // ==========================================
-    // 2. MANAJEMEN USER (INI YANG SEBELUMNYA HILANG)
+    // 2. MANAJEMEN USER 
     // ==========================================
     async getUsers(): Promise<any[]> {
         try {
