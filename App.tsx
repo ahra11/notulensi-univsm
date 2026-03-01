@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 import { Page, Minute } from './types';
 import Dashboard from './pages/Dashboard';
 import History from './pages/History';
@@ -117,6 +118,7 @@ const App: React.FC = () => {
             <div className="md:hidden">
                 <Navbar activePage={currentPage} onNavigate={navigateTo} />
             </div>
+            <SpeedInsights />
         </div>
     );
 };
