@@ -1,5 +1,6 @@
-
 import React, { useState } from 'react';
+// 1. IMPORT SPREADSHEET SERVICE (Wajib agar terhubung ke Cloud)
+import { SpreadsheetService } from '../services/spreadsheet';
 
 interface RegisterProps {
     onNavigate: (page: any) => void;
@@ -24,7 +25,8 @@ const Register: React.FC<RegisterProps> = ({ onNavigate, onRegisterSuccess }) =>
         pimpinan: ['Rektor', 'Wakil Rektor', 'Dekan', 'Wakil Dekan', 'Kepala Lembaga', 'Ketua Senat']
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    // 2. UBAH MENJADI ASYNC FUNCTION
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
         
@@ -35,7 +37,7 @@ const Register: React.FC<RegisterProps> = ({ onNavigate, onRegisterSuccess }) =>
 
         setIsLoading(true);
 
-        setTimeout(() => {
+        try {
             const users = JSON.parse(localStorage.getItem('usm_users') || '[]');
             
             if (users.find((u: any) => u.email === formData.email)) {
@@ -44,35 +46,47 @@ const Register: React.FC<RegisterProps> = ({ onNavigate, onRegisterSuccess }) =>
                 return;
             }
 
+            // 3. FORMAT DATA SESUAI JUDUL KOLOM GOOGLE SHEETS
+            // (id, name, email, password, role, nip)
             const newUser = {
+                id: Date.now().toString(),
                 name: formData.name,
                 nip: formData.nip,
                 email: formData.email,
                 password: formData.password,
-                category: formData.category,
-                role: formData.position,
-                isPimpinan: formData.category === 'pimpinan'
+                // Pastikan yang punya wewenang mengesahkan mendapat role PIMPINAN
+                role: formData.category === 'pimpinan' ? 'PIMPINAN' : 'STAF',
+                position: formData.position
             };
 
+            // 4. MENGIRIM DATA KE GOOGLE SHEETS (CLOUD)
+            await SpreadsheetService.addUser(newUser);
+
+            // 5. SIMPAN KE LOKAL (Agar langsung bisa masuk)
             users.push(newUser);
             localStorage.setItem('usm_users', JSON.stringify(users));
             localStorage.setItem('currentUser', JSON.stringify(newUser));
             
             setIsLoading(false);
             onRegisterSuccess();
-        }, 1500);
+
+        } catch (err) {
+            console.error(err);
+            setError('Gagal terhubung ke server Google Sheets. Silakan coba lagi.');
+            setIsLoading(false);
+        }
     };
 
     return (
-        <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6 bg-[radial-gradient(circle_at_bottom_left,_var(--tw-gradient-stops))] from-primary/5 via-transparent to-transparent">
-            <div className="max-w-md w-full bg-white rounded-[2.5rem] shadow-2xl shadow-primary/10 overflow-hidden border border-slate-100">
+        <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6 bg-[radial-gradient(circle_at_bottom_left,_var(--tw-gradient-stops))] from-[#252859]/5 via-transparent to-transparent">
+            <div className="max-w-md w-full bg-white rounded-[2.5rem] shadow-2xl overflow-hidden border border-slate-100">
                 <div className="p-8 md:p-10">
                     <div className="flex flex-col items-center text-center mb-8">
-                        <div className="p-4 bg-primary/5 rounded-full mb-4">
-                            <span className="material-symbols-outlined text-4xl text-primary">person_add</span>
+                        <div className="p-4 bg-[#252859]/5 rounded-full mb-4">
+                            <span className="material-symbols-outlined text-4xl text-[#252859]">person_add</span>
                         </div>
                         <h1 className="text-xl font-extrabold text-slate-900 tracking-tight">Daftar Akun Civitas</h1>
-                        <p className="text-[10px] text-primary font-bold uppercase tracking-widest mt-1">Universitas Sapta Mandiri</p>
+                        <p className="text-[10px] text-[#252859] font-bold uppercase tracking-widest mt-1">Universitas Sapta Mandiri</p>
                     </div>
 
                     {error && (
@@ -88,7 +102,7 @@ const Register: React.FC<RegisterProps> = ({ onNavigate, onRegisterSuccess }) =>
                                 required
                                 type="text" 
                                 placeholder="Contoh: Dr. Aris Subakti, M.T."
-                                className="w-full h-12 px-4 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-primary focus:bg-white transition-all text-sm font-medium"
+                                className="w-full h-12 px-4 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-[#252859] focus:bg-white transition-all text-sm font-medium"
                                 value={formData.name}
                                 onChange={(e) => setFormData({...formData, name: e.target.value})}
                             />
@@ -98,7 +112,7 @@ const Register: React.FC<RegisterProps> = ({ onNavigate, onRegisterSuccess }) =>
                             <div className="space-y-1">
                                 <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">Kategori Akun</label>
                                 <select 
-                                    className="w-full h-12 px-3 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-primary text-sm font-medium"
+                                    className="w-full h-12 px-3 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-[#252859] text-sm font-medium"
                                     value={formData.category}
                                     onChange={(e) => {
                                         const cat = e.target.value as 'staf' | 'pimpinan';
@@ -112,7 +126,7 @@ const Register: React.FC<RegisterProps> = ({ onNavigate, onRegisterSuccess }) =>
                             <div className="space-y-1">
                                 <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">Jabatan Spesifik</label>
                                 <select 
-                                    className="w-full h-12 px-3 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-primary text-sm font-medium"
+                                    className="w-full h-12 px-3 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-[#252859] text-sm font-medium"
                                     value={formData.position}
                                     onChange={(e) => setFormData({...formData, position: e.target.value})}
                                 >
@@ -131,7 +145,7 @@ const Register: React.FC<RegisterProps> = ({ onNavigate, onRegisterSuccess }) =>
                                     required
                                     type="text" 
                                     placeholder="19850..."
-                                    className="w-full h-12 px-4 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-primary focus:bg-white transition-all text-sm font-medium"
+                                    className="w-full h-12 px-4 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-[#252859] focus:bg-white transition-all text-sm font-medium"
                                     value={formData.nip}
                                     onChange={(e) => setFormData({...formData, nip: e.target.value})}
                                 />
@@ -142,7 +156,7 @@ const Register: React.FC<RegisterProps> = ({ onNavigate, onRegisterSuccess }) =>
                                     required
                                     type="email" 
                                     placeholder="nama@usm.ac.id"
-                                    className="w-full h-12 px-4 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-primary focus:bg-white transition-all text-sm font-medium"
+                                    className="w-full h-12 px-4 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-[#252859] focus:bg-white transition-all text-sm font-medium"
                                     value={formData.email}
                                     onChange={(e) => setFormData({...formData, email: e.target.value})}
                                 />
@@ -156,7 +170,7 @@ const Register: React.FC<RegisterProps> = ({ onNavigate, onRegisterSuccess }) =>
                                     required
                                     type="password" 
                                     placeholder="••••••••"
-                                    className="w-full h-12 px-4 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-primary focus:bg-white transition-all text-sm font-medium"
+                                    className="w-full h-12 px-4 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-[#252859] focus:bg-white transition-all text-sm font-medium"
                                     value={formData.password}
                                     onChange={(e) => setFormData({...formData, password: e.target.value})}
                                 />
@@ -167,7 +181,7 @@ const Register: React.FC<RegisterProps> = ({ onNavigate, onRegisterSuccess }) =>
                                     required
                                     type="password" 
                                     placeholder="••••••••"
-                                    className="w-full h-12 px-4 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-primary focus:bg-white transition-all text-sm font-medium"
+                                    className="w-full h-12 px-4 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-[#252859] focus:bg-white transition-all text-sm font-medium"
                                     value={formData.confirmPassword}
                                     onChange={(e) => setFormData({...formData, confirmPassword: e.target.value})}
                                 />
@@ -176,7 +190,7 @@ const Register: React.FC<RegisterProps> = ({ onNavigate, onRegisterSuccess }) =>
 
                         <button 
                             disabled={isLoading}
-                            className="w-full h-14 bg-primary text-white rounded-2xl shadow-xl shadow-primary/20 font-bold text-sm uppercase tracking-widest hover:brightness-110 active:scale-95 transition-all flex items-center justify-center mt-6"
+                            className="w-full h-14 bg-[#252859] text-white rounded-2xl shadow-xl font-bold text-sm uppercase tracking-widest hover:brightness-110 active:scale-95 transition-all flex items-center justify-center mt-6 disabled:opacity-50"
                         >
                             {isLoading ? (
                                 <div className="size-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
@@ -191,7 +205,7 @@ const Register: React.FC<RegisterProps> = ({ onNavigate, onRegisterSuccess }) =>
                             Sudah punya akun?{' '}
                             <button 
                                 onClick={() => onNavigate('login')}
-                                className="text-primary font-bold hover:underline"
+                                className="text-[#252859] font-bold hover:underline"
                             >
                                 Masuk di sini
                             </button>
