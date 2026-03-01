@@ -12,6 +12,20 @@ const MinutesDetail: React.FC<{ minute: Minute; onNavigate: (p: Page) => void }>
         window.print();
     };
 
+    // =================================================================
+    // FITUR BARU: PENYAPU SPASI OTOMATIS (AUTO-FORMATTER)
+    // =================================================================
+    const formatTeksResmi = (teks?: string) => {
+        if (!teks) return '-';
+        return teks
+            // 1. Merapikan spasi berlebih (tab/spasi ganda) di tengah kalimat menjadi 1 spasi saja
+            .replace(/[ \t]+/g, ' ')
+            // 2. Merapikan Enter berlebih. Jika ada 3 enter atau lebih, diringkas jadi maksimal 2 enter (1 baris kosong pemisah paragraf)
+            .replace(/(\n\s*){3,}/g, '\n\n')
+            // 3. Menghapus spasi kosong yang tidak sengaja terketik di paling awal atau akhir dokumen
+            .trim();
+    };
+
     return (
         <div className="p-4 md:p-8 bg-slate-50 min-h-screen flex flex-col items-center">
             
@@ -84,7 +98,7 @@ const MinutesDetail: React.FC<{ minute: Minute; onNavigate: (p: Page) => void }>
                                         </div>
                                         <div className="text-[14pt] font-bold leading-tight mb-2">SK Pendirian No. 661 / E/O/2024</div>
                                         
-                                        {/* PERMINTAAN BAPAK: Ukuran huruf diperkecil menjadi 9pt */}
+                                        {/* Ukuran huruf diperkecil menjadi 9pt */}
                                         <div className="text-[9pt] leading-snug">
                                             Kampus I : JL. A. Yani RT.07 Kel. Batu Piring Kec. Paringin Selatan Kab. Balangan Kalsel
                                         </div>
@@ -133,16 +147,16 @@ const MinutesDetail: React.FC<{ minute: Minute; onNavigate: (p: Page) => void }>
                                     </div>
                                 </div>
 
-                                {/* HASIL PEMBAHASAN (Dirapikan Otomatis) */}
+                                {/* HASIL PEMBAHASAN */}
                                 <div className="mt-4 mb-16">
                                     <p className="font-bold mb-3 uppercase text-[12pt]">Hasil Pembahasan:</p>
-                                    {/* PERMINTAAN BAPAK: Text-justify (rata kiri kanan) dan leading-relaxed (spasi rapi) */}
+                                    {/* MENGGUNAKAN AUTO-FORMATTER DI SINI */}
                                     <div className="whitespace-pre-wrap text-justify text-[12pt] leading-[1.8]">
-                                        {currentMinute.content}
+                                        {formatTeksResmi(currentMinute.content)}
                                     </div>
                                 </div>
 
-                                {/* AREA TANDA TANGAN (Dijamin Sejajar Sempurna Kiri & Kanan) */}
+                                {/* AREA TANDA TANGAN */}
                                 <table className="w-full text-center text-[12pt] border-none break-inside-avoid mb-10">
                                     <tbody>
                                         <tr>
@@ -175,7 +189,6 @@ const MinutesDetail: React.FC<{ minute: Minute; onNavigate: (p: Page) => void }>
                                 {/* --- HALAMAN LAMPIRAN DOKUMENTASI --- */}
                                 {currentMinute.documentation && currentMinute.documentation.length > 0 && (
                                     <div className="break-page break-inside-avoid w-full">
-                                        {/* Tidak perlu Kop Surat lagi di sini karena THEAD sudah otomatis mencetaknya di halaman baru */}
                                         <h3 className="text-center font-bold uppercase underline mb-8 text-[14pt]">LAMPIRAN DOKUMENTASI</h3>
                                         <div className="grid grid-cols-2 gap-6 pb-10">
                                             {currentMinute.documentation.map((img, i) => (
