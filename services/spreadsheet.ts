@@ -16,23 +16,51 @@ export const SpreadsheetService = {
 
     async fetchAllMinutes(): Promise<any[]> {
         try {
-            console.log("Mencoba menarik data Notulensi dari Cloud...");
+            console.log("1. Mencoba menarik data Notulensi dari Cloud...");
             const response = await fetch(`${WEB_APP_URL}?actionType=read&_t=${Date.now()}`);
             const data = await response.json();
+            
+            // MATA-MATA: Memeriksa apa yang sebenarnya dikirim Google ke Aplikasi
+            console.log("2. Data mentah dari Google Sheets:", data);
+
+            if (data.error) {
+                console.error("3. Terjadi Error di server Google:", data.error);
+                throw new Error(data.error);
+            }
+
             const minutes = Array.isArray(data) ? data : [];
             
-            // VALIDASI STATUS: Mencegah status "SIGNED" palsu
-            const sanitizedMinutes = minutes.map(m => ({
+            const sanitizedMinutes = minutes.map((m, i) => ({
                 ...m,
+                id: m.id || `M-RECOVERY-${i}`, // Mencegah ID kosong
                 status: (m.status === 'SIGNED' && (m.signedby || m.signedBy)) ? 'SIGNED' : 'DRAFT',
-                title: String(m.title || ""),
+                title: String(m.title || "Tanpa Judul"),
             }));
 
-            localStorage.setItem('usm_minutes_cache', JSON.stringify(sanitizedMinutes));
-            console.log("Berhasil menarik Notulensi:", sanitizedMinutes);
+            // ==========================================
+            // PERBAIKAN ANTI-JEBOL (QUOTA EXCEEDED ERROR FIX)
+            // ==========================================
+            try {
+                // Kita buat versi ringan (tanpa foto) khusus untuk disimpan ke memori laptop
+                // Ini mencegah browser error karena memori penuh
+                const lightweightCache = sanitizedMinutes.map(m => {
+                    // Menyalin semua data, tapi mengosongkan bagian dokumentasi/foto
+                    const { documentation, ...rest } = m;
+                    return { ...rest, documentation: [] };
+                });
+                
+                localStorage.setItem('usm_minutes_cache', JSON.stringify(lightweightCache));
+                console.log("4. Cache versi ringan berhasil disimpan ke memori laptop.");
+            } catch (cacheError) {
+                // Jika memori masih kepenuhan, aplikasi tidak akan crash, hanya melewati proses simpan cache
+                console.warn("Peringatan: Memori lokal penuh, melewati proses simpan cache. Aplikasi tetap aman.");
+            }
+
+            // KITA MENGEMBALIKAN DATA ASLI (YANG ADA FOTONYA) KE LAYAR BAPAK
             return sanitizedMinutes;
+            
         } catch (error) {
-            console.error("Gagal menarik Notulensi dari Cloud:", error);
+            console.error("X. Gagal menarik Notulensi dari Cloud:", error);
             const local = localStorage.getItem('usm_minutes_cache');
             return local ? JSON.parse(local) : [];
         }
