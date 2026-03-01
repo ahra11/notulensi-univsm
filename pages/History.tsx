@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { Page, Minute, MinutesStatus } from '../types';
 import { SpreadsheetService } from '../services/spreadsheet';
@@ -29,11 +28,13 @@ const History: React.FC<HistoryProps> = ({ onNavigate }) => {
         }
     };
 
+    // PERBAIKAN: Fungsi pencarian ini sekarang kebal terhadap data kosong/null
     const filteredItems = useMemo(() => {
-        return allHistoryItems.filter(item => 
-            item.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            item.content?.toLowerCase().includes(searchQuery.toLowerCase())
-        );
+        return allHistoryItems.filter(item => {
+            const titleMatch = String(item.title || '').toLowerCase().includes(searchQuery.toLowerCase());
+            const contentMatch = String(item.content || '').toLowerCase().includes(searchQuery.toLowerCase());
+            return titleMatch || contentMatch;
+        });
     }, [allHistoryItems, searchQuery]);
 
     const handleDelete = async (id: string, e: React.MouseEvent) => {
@@ -43,7 +44,6 @@ const History: React.FC<HistoryProps> = ({ onNavigate }) => {
         setIsDeleting(id);
         try {
             await SpreadsheetService.deleteData(id);
-            // Update UI secara instan (Optimistic UI)
             setAllHistoryItems(prev => prev.filter(item => item.id !== id));
             alert("Dokumen berhasil dihapus dari cloud.");
         } catch (error) {
@@ -76,7 +76,7 @@ const History: React.FC<HistoryProps> = ({ onNavigate }) => {
                     <input 
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full h-12 pl-10 pr-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-2 focus:ring-primary focus:bg-white text-sm transition-all outline-none" 
+                        className="w-full h-12 pl-10 pr-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-2 focus:ring-[#252859] focus:bg-white text-sm transition-all outline-none" 
                         placeholder="Cari judul rapat, isi pembahasan, atau agenda..." 
                         type="text" 
                     />
@@ -92,18 +92,18 @@ const History: React.FC<HistoryProps> = ({ onNavigate }) => {
                     </div>
                 ) : filteredItems.length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {filteredItems.map((item) => (
+                        {filteredItems.map((item, index) => (
                             <div 
-                                key={item.id}
+                                key={item.id || `arsip-${index}`} // PERBAIKAN: Mencegah error jika ID kembar
                                 onClick={() => onNavigate('detail', item)}
-                                className="group bg-white border border-slate-100 p-6 rounded-3xl shadow-sm hover:shadow-xl hover:border-primary/20 transition-all cursor-pointer relative"
+                                className="group bg-white border border-slate-100 p-6 rounded-3xl shadow-sm hover:shadow-xl hover:border-[#252859]/20 transition-all cursor-pointer relative"
                             >
                                 <div className="flex justify-between items-start mb-4">
                                     <div className={`px-2.5 py-1 rounded-lg text-[9px] font-bold uppercase tracking-wider ${
                                         item.status === MinutesStatus.SIGNED ? 'bg-green-100 text-green-700' : 
-                                        item.status === MinutesStatus.DRAFT ? 'bg-amber-100 text-amber-700' : 'bg-primary/5 text-primary'
+                                        item.status === MinutesStatus.DRAFT ? 'bg-amber-100 text-amber-700' : 'bg-[#252859]/5 text-[#252859]'
                                     }`}>
-                                        {item.status}
+                                        {item.status || 'DRAFT'}
                                     </div>
                                     <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                         <button 
@@ -124,7 +124,7 @@ const History: React.FC<HistoryProps> = ({ onNavigate }) => {
                                     </div>
                                 </div>
                                 
-                                <h3 className="text-base font-bold text-slate-900 group-hover:text-primary leading-tight transition-colors mb-2 line-clamp-2">{item.title}</h3>
+                                <h3 className="text-base font-bold text-slate-900 group-hover:text-[#252859] leading-tight transition-colors mb-2 line-clamp-2">{item.title || 'Tanpa Judul'}</h3>
                                 <div className="space-y-1">
                                     <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight flex items-center gap-1">
                                         <span className="material-symbols-outlined text-xs">calendar_today</span>
@@ -134,19 +134,19 @@ const History: React.FC<HistoryProps> = ({ onNavigate }) => {
                                         <span className="material-symbols-outlined text-xs">location_on</span>
                                         {item.location || 'Kampus Utama'}
                                     </p>
-                                    <p className="text-[9px] text-slate-300 font-medium truncate mt-2">Update: {item.updatedAt}</p>
+                                    {item.updatedAt && <p className="text-[9px] text-slate-300 font-medium truncate mt-2">Update: {item.updatedAt}</p>}
                                 </div>
                             </div>
                         ))}
                     </div>
                 ) : (
                     <div className="py-32 text-center">
-                        <span className="material-symbols-outlined text-6xl text-slate-100">folder_open</span>
+                        <span className="material-symbols-outlined text-6xl text-slate-200">folder_open</span>
                         <p className="text-slate-400 font-bold mt-4 uppercase tracking-widest text-xs">
                             {searchQuery ? 'Tidak ada hasil untuk pencarian ini' : 'Belum ada arsip notulensi tersimpan'}
                         </p>
                         {!searchQuery && (
-                            <button onClick={() => onNavigate('form')} className="mt-4 px-6 py-2 bg-primary text-white rounded-xl text-xs font-bold uppercase tracking-widest shadow-lg shadow-primary/20">
+                            <button onClick={() => onNavigate('form')} className="mt-4 px-6 py-2 bg-[#252859] text-white rounded-xl text-xs font-bold uppercase tracking-widest shadow-lg shadow-indigo-900/20 hover:bg-black">
                                 Buat Notulensi Baru
                             </button>
                         )}
