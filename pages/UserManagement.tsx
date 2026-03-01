@@ -31,7 +31,6 @@ const UserManagement: React.FC<UserManagementProps> = ({ onNavigate }) => {
         const fetchData = async () => {
             setIsLoading(true);
             try {
-                // Mengambil data user terbaru melalui SpreadsheetService
                 const data = await SpreadsheetService.getUsers();
                 setUsers(data);
                 localStorage.setItem('usm_users', JSON.stringify(data));
@@ -54,36 +53,39 @@ const UserManagement: React.FC<UserManagementProps> = ({ onNavigate }) => {
         };
 
         try {
-            await SpreadsheetService.addUser(userToAdd); //
+            await SpreadsheetService.addUser(userToAdd); 
             const updatedUsers = [...users, userToAdd];
             setUsers(updatedUsers);
             localStorage.setItem('usm_users', JSON.stringify(updatedUsers));
             
             setNewUser({ name: '', email: '', password: '', role: 'STAF', nip: '' });
             setShowAddForm(false);
-            alert('User berhasil ditambahkan dan Email notifikasi telah dikirim!');
+            alert('User berhasil ditambahkan dan tersimpan ke Cloud!');
         } catch (error) {
             alert('Gagal menyinkronkan data baru ke cloud.');
         }
     };
 
-    // FITUR: Update Data Langsung (Nama, Role, NIP)
-    const handleUpdateUser = async (id: string, field: keyof User, value: string) => {
-        const updatedUsers = users.map(user => 
+    // MENGUBAH TAMPILAN DI LAYAR (Tanpa mengirim ke server dulu agar tidak lag)
+    const handleLocalChange = (id: string, field: keyof User, value: string) => {
+        setUsers(prevUsers => prevUsers.map(user => 
             user.id === id ? { ...user, [field]: value } : user
-        );
-        
-        setUsers(updatedUsers);
-        localStorage.setItem('usm_users', JSON.stringify(updatedUsers));
+        ));
+    };
 
-        try {
-            const userToUpdate = updatedUsers.find(u => u.id === id);
-            if (userToUpdate) {
-                // Mengirim perubahan ke backend Apps Script
-                await SpreadsheetService.updateUser(id, userToUpdate);
+    // MENGIRIM KE CLOUD (Hanya dipanggil saat selesai mengetik atau saat ganti opsi)
+    const syncToCloud = async (id: string, field?: keyof User, overrideValue?: string) => {
+        const userToUpdate = users.find(u => u.id === id);
+        if (userToUpdate) {
+            // Jika ada nilai paksaan (seperti dropdown role), gunakan itu
+            const finalUser = field && overrideValue ? { ...userToUpdate, [field]: overrideValue } : userToUpdate;
+            
+            localStorage.setItem('usm_users', JSON.stringify(users));
+            try {
+                await SpreadsheetService.updateUser(id, finalUser);
+            } catch (error) {
+                console.error("Gagal update ke cloud:", error);
             }
-        } catch (error) {
-            console.error("Gagal update ke cloud:", error);
         }
     };
 
@@ -91,9 +93,10 @@ const UserManagement: React.FC<UserManagementProps> = ({ onNavigate }) => {
     const handleResetPassword = async (id: string, userName: string) => {
         const newPassword = window.prompt(`Masukkan Password Baru untuk ${userName}:`);
         if (newPassword && newPassword.length >= 4) {
-            await handleUpdateUser(id, 'password', newPassword);
+            handleLocalChange(id, 'password', newPassword);
+            await syncToCloud(id, 'password', newPassword);
             navigator.clipboard.writeText(newPassword);
-            alert(`Password disinkronkan ke Cloud, disalin ke Clipboard, dan dikirim via Email!`);
+            alert(`Password disinkronkan ke Cloud dan disalin ke Clipboard!`);
         }
     };
 
@@ -101,7 +104,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ onNavigate }) => {
     const handleDeleteUser = async (id: string) => {
         if (window.confirm('Hapus pengguna dari Sistem & Google Sheets?')) {
             try {
-                await SpreadsheetService.deleteUser(id); //
+                await SpreadsheetService.deleteUser(id); 
                 const updatedUsers = users.filter(user => user.id !== id);
                 setUsers(updatedUsers);
                 localStorage.setItem('usm_users', JSON.stringify(updatedUsers));
@@ -142,7 +145,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ onNavigate }) => {
                             placeholder="Cari civitas..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="pl-10 pr-4 py-2.5 bg-slate-100 border-none rounded-xl text-sm w-full md:w-56 focus:ring-2 focus:ring-primary focus:bg-white transition-all"
+                            className="pl-10 pr-4 py-2.5 bg-slate-100 border-none rounded-xl text-sm w-full md:w-56 focus:ring-2 focus:ring-[#252859] focus:bg-white transition-all"
                         />
                     </div>
                 </div>
@@ -191,14 +194,35 @@ const UserManagement: React.FC<UserManagementProps> = ({ onNavigate }) => {
                                         <div className="size-10 rounded-full bg-[#252859] text-white flex items-center justify-center font-bold text-xs shadow-sm flex-shrink-0">
                                             {user.name.substring(0, 2).toUpperCase()}
                                         </div>
+                                        {/* PERBAIKAN TAMPILAN NAMA DAN NIP */}
                                         <div className="flex flex-col w-full gap-1">
-                                            <input type="text" value={user.name} onChange={(e) => handleUpdateUser(user.id, 'name', e.target.value)} className="text-sm font-bold text-slate-700 bg-transparent border-none p-0 focus:ring-0 w-full" />
-                                            <input type="text" value={user.nip || ''} onChange={(e) => handleUpdateUser(user.id, 'nip', e.target.value)} className="text-[10px] text-slate-400 font-bold uppercase bg-transparent border-none p-0 focus:ring-0 w-full" placeholder="Isi NIP..." />
+                                            <input 
+                                                type="text" 
+                                                value={user.name} 
+                                                onChange={(e) => handleLocalChange(user.id, 'name', e.target.value)} 
+                                                onBlur={() => syncToCloud(user.id)}
+                                                className="text-sm font-bold text-slate-700 bg-transparent border-none p-0 focus:ring-0 focus:border-b focus:border-[#252859] w-full transition-colors" 
+                                            />
+                                            <input 
+                                                type="text" 
+                                                value={user.nip || ''} 
+                                                onChange={(e) => handleLocalChange(user.id, 'nip', e.target.value)} 
+                                                onBlur={() => syncToCloud(user.id)}
+                                                className="text-[10px] text-slate-400 font-bold uppercase bg-transparent border-none p-0 focus:ring-0 focus:border-b focus:border-[#252859] w-full transition-colors" 
+                                                placeholder="Isi NIP..." 
+                                            />
                                         </div>
                                     </div>
                                 </td>
                                 <td className="px-6 py-4 text-center">
-                                    <select value={user.role} onChange={(e) => handleUpdateUser(user.id, 'role', e.target.value)} className="text-[10px] font-black uppercase py-1.5 px-3 rounded-full border-none bg-slate-100 cursor-pointer">
+                                    <select 
+                                        value={user.role} 
+                                        onChange={(e) => {
+                                            handleLocalChange(user.id, 'role', e.target.value);
+                                            syncToCloud(user.id, 'role', e.target.value);
+                                        }} 
+                                        className="text-[10px] font-black uppercase py-1.5 px-3 rounded-full border-none bg-slate-100 cursor-pointer focus:ring-2 focus:ring-[#252859]"
+                                    >
                                         <option value="SUPER_ADMIN">SUPER ADMIN</option>
                                         <option value="PIMPINAN">PIMPINAN</option>
                                         <option value="SEKRETARIS">SEKRETARIS</option>
