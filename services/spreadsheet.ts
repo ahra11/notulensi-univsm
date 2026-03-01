@@ -4,7 +4,7 @@
  */
 
 // URL Web App Bapak (Jangan diubah, ini sudah benar)
-const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyXRMlre2OS-8dfGIg9j_UdlyCRoVjiYUEk4eMWBKfbnx4qes9eJOfdb1mUW1zV6MR4WQ/exec";
+const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyZQClI0--BMZZgKrN_62KvpB8HZJgZabvssLYkuSnJ8bPiiP4LlriHSwFeRcy-DmgvKQ/exec";
 
 export const SpreadsheetService = {
     // ==========================================
@@ -24,12 +24,10 @@ export const SpreadsheetService = {
             // VALIDASI STATUS: Mencegah status "SIGNED" palsu
             const sanitizedMinutes = minutes.map(m => ({
                 ...m,
-                // Pastikan mengecek huruf besar/kecil dari kolom Google Sheets
                 status: (m.status === 'SIGNED' && (m.signedby || m.signedBy)) ? 'SIGNED' : 'DRAFT',
                 title: String(m.title || ""),
             }));
 
-            // Simpan backup ke memori lokal
             localStorage.setItem('usm_minutes_cache', JSON.stringify(sanitizedMinutes));
             console.log("Berhasil menarik Notulensi:", sanitizedMinutes);
             return sanitizedMinutes;
@@ -41,13 +39,11 @@ export const SpreadsheetService = {
     },
 
     async saveMinute(data: any) {
-        // Data baru SELALU berstatus DRAFT sebelum disahkan Rektor
         const payload = { ...data, status: 'DRAFT', actionType: 'create' };
         return this.postToCloud(payload);
     },
 
     async verifyMinute(id: string, verifierName: string) {
-        // HANYA fungsi ini yang bisa mengubah status menjadi SIGNED
         return this.postToCloud({ 
             id, 
             signedBy: verifierName, 
@@ -57,7 +53,6 @@ export const SpreadsheetService = {
         });
     },
 
-    // INI FUNGSI YANG BARU DITAMBAHKAN AGAR TOMBOL HAPUS BERFUNGSI
     async deleteData(id: string) {
         console.log(`Menghapus data dengan ID: ${id}`);
         return this.postToCloud({ 
@@ -75,10 +70,8 @@ export const SpreadsheetService = {
             const response = await fetch(`${WEB_APP_URL}?action=getUsers&_t=${Date.now()}`);
             const data = await response.json();
             
-            // Mengambil isi dari bungkusan { users: [...] }
             const usersList = data.users && Array.isArray(data.users) ? data.users : [];
             
-            // Simpan backup ke memori lokal
             localStorage.setItem('usm_users', JSON.stringify(usersList));
             console.log("Berhasil menarik User:", usersList);
             return usersList;
@@ -90,8 +83,18 @@ export const SpreadsheetService = {
     },
 
     async addUser(user: any) {
-        // Mengirim bungkusan data user baru ke Google Sheets
         const payload = { action: 'addUser', user: user };
+        return this.postToCloud(payload);
+    },
+
+    // DUA FUNGSI INI WAJIB ADA AGAR SUPER ADMIN BISA EDIT & HAPUS AKUN
+    async updateUser(id: string, userData: any) {
+        const payload = { action: 'updateUser', id: id, user: userData };
+        return this.postToCloud(payload);
+    },
+
+    async deleteUser(id: string) {
+        const payload = { action: 'deleteUser', id: id };
         return this.postToCloud(payload);
     },
 
@@ -102,7 +105,6 @@ export const SpreadsheetService = {
         try {
             const response = await fetch(WEB_APP_URL, {
                 method: 'POST',
-                // Menggunakan text/plain agar tidak diblokir oleh sistem keamanan browser (CORS)
                 headers: { 'Content-Type': 'text/plain' }, 
                 body: JSON.stringify(payload)
             });
