@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
-// 1. IMPORT LOGO SECARA LANGSUNG
+import { SpreadsheetService } from '../services/spreadsheet';
+
+// LOGO TETAP MENGGUNAKAN IMPORT ASLI BAPAK
 import logoUSM from '../logo-usm.png'; 
 
 interface LoginProps {
@@ -13,17 +15,22 @@ const Login: React.FC<LoginProps> = ({ onLogin, onNavigate }) => {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
         setError('');
 
-        // Simulasi pengecekan login
-        setTimeout(() => {
-            const users = JSON.parse(localStorage.getItem('usm_users') || '[]');
-            const user = users.find((u: any) => u.email === email && u.password === password);
+        try {
+            // 1. Ambil data dari memori laptop
+            let users = JSON.parse(localStorage.getItem('usm_users') || '[]');
+            
+            // 2. Jika memori kosong, paksa tarik dari Google Sheets
+            if (users.length === 0) {
+                console.log("Menarik data pengguna dari Cloud...");
+                users = await SpreadsheetService.getUsers();
+            }
 
-            // POINT PERUBAHAN: Menggunakan info@univsm.ac.id sebagai Super Admin
+            // 3. Pintu Darurat Super Admin (Agar Rektor selalu bisa masuk)
             if (email === 'info@univsm.ac.id' && password === 'admin123') {
                 const adminUser = { 
                     id: 'SA-01',
@@ -34,16 +41,39 @@ const Login: React.FC<LoginProps> = ({ onLogin, onNavigate }) => {
                 };
                 localStorage.setItem('currentUser', JSON.stringify(adminUser));
                 onLogin();
-            } 
-            // Pengecekan untuk user reguler (Pimpinan, Staf, Sekretaris) yang sudah mendaftar
-            else if (user) {
+                return;
+            }
+
+            // 4. Cek kecocokan (menggunakan .trim() agar kebal terhadap spasi tidak sengaja)
+            const user = users.find((u: any) => 
+                String(u.email).trim() === email.trim() && 
+                String(u.password).trim() === password.trim()
+            );
+
+            if (user) {
                 localStorage.setItem('currentUser', JSON.stringify(user));
                 onLogin();
             } else {
-                setError('Email atau kata sandi salah.');
+                // Tarikan paksa terakhir jika ternyata akun baru saja didaftarkan
+                const freshUsers = await SpreadsheetService.getUsers();
+                const freshUser = freshUsers.find((u: any) => 
+                    String(u.email).trim() === email.trim() && 
+                    String(u.password).trim() === password.trim()
+                );
+
+                if (freshUser) {
+                    localStorage.setItem('currentUser', JSON.stringify(freshUser));
+                    onLogin();
+                } else {
+                    setError('Email atau kata sandi salah. Pastikan akun sudah terdaftar di sistem.');
+                }
             }
+        } catch (err) {
+            console.error("Terjadi kesalahan saat login:", err);
+            setError('Terjadi kesalahan jaringan. Silakan coba beberapa saat lagi.');
+        } finally {
             setIsLoading(false);
-        }, 1200);
+        }
     };
 
     return (
@@ -51,8 +81,8 @@ const Login: React.FC<LoginProps> = ({ onLogin, onNavigate }) => {
             <div className="max-w-md w-full bg-white rounded-[2.5rem] shadow-2xl shadow-primary/10 overflow-hidden border border-slate-100">
                 <div className="p-8 md:p-12">
                     <div className="flex flex-col items-center text-center mb-10">
-                        {/* 2. PENGGUNAAN VARIABEL logoUSM HASIL IMPORT */}
                         <div className="mb-6">
+                            {/* PEMANGGILAN LOGO TETAP SEPERTI ASLINYA */}
                             <img 
                                 src={logoUSM} 
                                 alt="Logo Universitas Sapta Mandiri" 
@@ -105,7 +135,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onNavigate }) => {
 
                         <button 
                             disabled={isLoading}
-                            className="w-full h-14 bg-primary text-white rounded-2xl shadow-xl shadow-primary/20 font-bold text-sm uppercase tracking-widest hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-3"
+                            className="w-full h-14 bg-[#252859] text-white rounded-2xl shadow-xl shadow-indigo-900/20 font-bold text-sm uppercase tracking-widest hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
                         >
                             {isLoading ? (
                                 <div className="size-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
