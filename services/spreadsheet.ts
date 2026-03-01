@@ -4,7 +4,7 @@
  */
 
 // URL Web App Bapak (Jangan diubah, ini sudah benar)
-const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzDb03Bz4h816au0iQEHLJpX9x3V2ZaVSUvBV4CVfhAmEPO7vEjLvo6UW55-4n-7r8Q/exec";
+const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyXRMlre2OS-8dfGIg9j_UdlyCRoVjiYUEk4eMWBKfbnx4qes9eJOfdb1mUW1zV6MR4WQ/exec";
 
 export const SpreadsheetService = {
     // ==========================================
