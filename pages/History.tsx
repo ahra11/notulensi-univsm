@@ -11,18 +11,18 @@ const History: React.FC<HistoryProps> = ({ onNavigate }) => {
     const [isLoading, setIsLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
 
+    const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+
     useEffect(() => {
         loadHistoryData();
     }, []);
 
     const loadHistoryData = async () => {
-        // 1. TAMPILKAN CACHE LANGSUNG AGAR TIDAK LAMBAT
         const cached = JSON.parse(localStorage.getItem('usm_minutes_cache') || '[]');
         if (cached.length > 0) {
             setMinutes([...cached].sort((a, b) => b.id.localeCompare(a.id)));
         }
 
-        // 2. SINKRONISASI LATAR BELAKANG
         try {
             const freshData = await SpreadsheetService.fetchAllMinutes();
             setMinutes([...freshData].sort((a, b) => b.id.localeCompare(a.id)));
@@ -30,6 +30,33 @@ const History: React.FC<HistoryProps> = ({ onNavigate }) => {
             console.error("Gagal menarik data terbaru:", error);
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    // PERBAIKAN: Tombol Hapus yang "Cerewet" akan Error-nya
+    const handleDelete = async (e: React.MouseEvent, id: string) => {
+        e.preventDefault();
+        e.stopPropagation(); 
+        
+        if (window.confirm("Peringatan: Anda akan menghapus dokumen ini secara permanen dari server. Lanjutkan?")) {
+            setIsLoading(true);
+            try {
+                const response = await SpreadsheetService.deleteData(id);
+                // Jika Google menolak, kita tangkap errornya
+                if (response && response.success === false) {
+                    throw new Error(response.message || response.error || "Ditolak oleh Server Google");
+                }
+                
+                const newMinutes = minutes.filter(m => m.id !== id);
+                setMinutes(newMinutes);
+                localStorage.setItem('usm_minutes_cache', JSON.stringify(newMinutes));
+                alert("Dokumen berhasil dihapus secara permanen.");
+            } catch (error: any) {
+                console.error(error);
+                alert("GAGAL MENGHAPUS!\n\nPesan Error: " + (error.message || "Pastikan URL Google Script sudah benar dan di-Deploy ulang."));
+            } finally {
+                setIsLoading(false);
+            }
         }
     };
 
@@ -53,10 +80,8 @@ const History: React.FC<HistoryProps> = ({ onNavigate }) => {
                     <div className="relative w-full md:w-64">
                         <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">search</span>
                         <input 
-                            type="text" 
-                            placeholder="Cari judul rapat..." 
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
+                            type="text" placeholder="Cari judul rapat..." 
+                            value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
                             className="w-full h-10 pl-10 pr-4 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#252859] focus:border-none transition-all text-sm font-medium shadow-sm"
                         />
                     </div>
@@ -91,7 +116,7 @@ const History: React.FC<HistoryProps> = ({ onNavigate }) => {
                                         </div>
                                     </td>
                                     <td className="p-5">
-                                        <p className="font-bold text-slate-900 mb-1 group-hover:text-[#252859] transition-colors">{meeting.title}</p>
+                                        <p className="font-bold text-slate-900 mb-1">{meeting.title}</p>
                                         <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
                                             <span>{meeting.id}</span>
                                             <span className="size-1 bg-slate-200 rounded-full"></span>
@@ -101,27 +126,32 @@ const History: React.FC<HistoryProps> = ({ onNavigate }) => {
                                     <td className="p-5 hidden md:table-cell">
                                         <div className="flex flex-col gap-1 text-xs text-slate-500 font-medium">
                                             <div className="flex items-center gap-2"><span className="material-symbols-outlined text-[14px] text-slate-400">calendar_today</span> {meeting.date}</div>
-                                            <div className="flex items-center gap-2 truncate max-w-[200px]"><span className="material-symbols-outlined text-[14px] text-slate-400">location_on</span> {meeting.location || '-'}</div>
                                         </div>
                                     </td>
-                                    <td className="p-5 text-right">
-                                        <button 
-                                            onClick={() => onNavigate('detail', meeting)}
-                                            className="inline-flex items-center gap-2 px-4 py-2 bg-slate-100 text-[#252859] hover:bg-[#252859] hover:text-white rounded-xl text-xs font-bold transition-all shadow-sm"
-                                        >
-                                            Buka Dokumen
-                                            <span className="material-symbols-outlined text-[14px]">open_in_new</span>
-                                        </button>
+                                    <td className="p-5">
+                                        <div className="flex items-center justify-end gap-2">
+                                            {(currentUser.role === 'PIMPINAN' || currentUser.role === 'SUPER_ADMIN') && (
+                                                <>
+                                                    <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); onNavigate('form', meeting); }} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all" title="Edit Dokumen">
+                                                        <span className="material-symbols-outlined text-sm">edit</span>
+                                                    </button>
+                                                    <button onClick={(e) => handleDelete(e, meeting.id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" title="Hapus Dokumen">
+                                                        <span className="material-symbols-outlined text-sm">delete</span>
+                                                    </button>
+                                                </>
+                                            )}
+                                            
+                                            <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); onNavigate('detail', meeting); }} className="inline-flex items-center gap-2 px-4 py-2 bg-slate-100 text-[#252859] hover:bg-[#252859] hover:text-white rounded-xl text-xs font-bold transition-all shadow-sm">
+                                                Buka
+                                                <span className="material-symbols-outlined text-[14px]">open_in_new</span>
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                             )) : (
                                 <tr>
                                     <td colSpan={4} className="p-10 text-center">
-                                        <div className="size-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-3">
-                                            <span className="material-symbols-outlined text-2xl text-slate-300">search_off</span>
-                                        </div>
                                         <p className="text-sm font-bold text-slate-900">Data tidak ditemukan</p>
-                                        <p className="text-xs text-slate-500 mt-1">Belum ada notulensi atau pencarian tidak cocok.</p>
                                     </td>
                                 </tr>
                             )}
