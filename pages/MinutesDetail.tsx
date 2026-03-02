@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Minute, Page } from '../types';
 import { SpreadsheetService } from '../services/spreadsheet';
-// Menggunakan logo dari posisi asli (import) sesuai permintaan Bapak
 import logoUSM from '../logo-usm.png';
 
 const MinutesDetail: React.FC<{ minute: Minute; onNavigate: (p: Page) => void }> = ({ minute, onNavigate }) => {
@@ -20,20 +19,18 @@ const MinutesDetail: React.FC<{ minute: Minute; onNavigate: (p: Page) => void }>
         setCurrentMinute(minute);
     }, [minute]);
 
-    const handlePrint = () => { window.print(); };
+    const handlePrint = () => { 
+        window.print(); 
+    };
 
-    // ==========================================
-    // FITUR: PENYAPU SPASI OTOMATIS
-    // ==========================================
     const formatTeksResmi = (teks?: string) => {
         if (!teks) return '-';
         return teks
-            .replace(/[ \t]+/g, ' ') // Spasi ganda jadi satu
-            .replace(/(\n\s*){3,}/g, '\n\n') // Enter banyak jadi maksimal dua
+            .replace(/[ \t]+/g, ' ')
+            .replace(/(\n\s*){3,}/g, '\n\n')
             .trim();
     };
 
-    // --- LOGIKA DRAWING (GORES TANGAN) ---
     const startDrawing = (e: any) => {
         const canvas = canvasRef.current;
         if (!canvas) return;
@@ -56,13 +53,12 @@ const MinutesDetail: React.FC<{ minute: Minute; onNavigate: (p: Page) => void }>
         if (ctx) {
             ctx.lineWidth = 2.5;
             ctx.lineCap = 'round';
-            ctx.strokeStyle = '#00008B'; // Biru tinta pena
+            ctx.strokeStyle = '#00008B';
             ctx.lineTo(x, y);
             ctx.stroke();
         }
     };
 
-    // --- LOGIKA UPLOAD TTD ---
     const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
@@ -74,7 +70,6 @@ const MinutesDetail: React.FC<{ minute: Minute; onNavigate: (p: Page) => void }>
                     const ctx = canvas?.getContext('2d');
                     if (ctx && canvas) {
                         ctx.clearRect(0, 0, canvas.width, canvas.height);
-                        // Menggambar gambar upload ke canvas agar ukurannya proporsional
                         ctx.drawImage(img, 50, 10, 300, 180); 
                     }
                 };
@@ -84,9 +79,6 @@ const MinutesDetail: React.FC<{ minute: Minute; onNavigate: (p: Page) => void }>
         }
     };
 
-    // ==========================================
-    // PROSES PENGESAHAN (UBAH STATUS KE SIGNED)
-    // ==========================================
     const submitVerify = async () => {
         const canvas = canvasRef.current;
         if (!canvas) return;
@@ -99,7 +91,7 @@ const MinutesDetail: React.FC<{ minute: Minute; onNavigate: (p: Page) => void }>
                 signedBy: currentUser.name,
                 signedAt: new Date().toLocaleString('id-ID'),
                 signature: signatureBase64,
-                status: 'SIGNED', // HARUS SIGNED
+                status: 'SIGNED',
                 actionType: 'verify'
             };
 
@@ -108,10 +100,8 @@ const MinutesDetail: React.FC<{ minute: Minute; onNavigate: (p: Page) => void }>
             if (response.success) {
                 const updatedData = { ...currentMinute, status: 'SIGNED' as any, signedBy: currentUser.name, signature: signatureBase64 };
                 
-                // 1. Update State Layar
                 setCurrentMinute(updatedData);
                 
-                // 2. Update Cache Lokal (Agar di daftar arsip juga berubah hijau)
                 const cache = JSON.parse(localStorage.getItem('usm_minutes_cache') || '[]');
                 const newCache = cache.map((m: any) => m.id === currentMinute.id ? updatedData : m);
                 localStorage.setItem('usm_minutes_cache', JSON.stringify(newCache));
@@ -127,29 +117,47 @@ const MinutesDetail: React.FC<{ minute: Minute; onNavigate: (p: Page) => void }>
     return (
         <div className="p-4 md:p-8 bg-slate-50 min-h-screen flex flex-col items-center">
             
-            {/* CSS CETAK: KOP BERULANG & TIMES NEW ROMAN */}
+            {/* PERBAIKAN CSS CETAK (KERTAS A4 RAPI) */}
             <style dangerouslySetInnerHTML={{ __html: `
                 @media print {
-                    @page { size: A4; margin: 0; }
-                    body { margin: 0; padding: 0; background: white !important; }
+                    @page { size: A4 portrait; margin: 15mm; }
+                    
+                    body, html { 
+                        margin: 0 !important; 
+                        padding: 0 !important; 
+                        background: white !important; 
+                        -webkit-print-color-adjust: exact !important; 
+                        print-color-adjust: exact !important;
+                    }
+                    
                     .no-print { display: none !important; }
                     
-                    /* Tabel Utama untuk Kop Berulang */
+                    .main-container { 
+                        box-shadow: none !important; 
+                        border: none !important; 
+                        width: 100% !important; 
+                        max-width: 100% !important; 
+                        padding: 0 !important; 
+                        margin: 0 !important;
+                        border-radius: 0 !important;
+                    }
+                    
                     .print-wrapper { display: table; width: 100%; border-collapse: collapse; }
                     .print-header { display: table-header-group; }
                     .print-body { display: table-row-group; }
                     
-                    .print-header-padding { padding: 1.5cm 2cm 0 2cm; }
-                    .print-content-padding { padding: 0.5cm 2cm 1.5cm 2cm; }
+                    /* Mencegah foto/tabel terpotong */
+                    .break-inside-avoid { page-break-inside: avoid !important; break-inside: avoid !important; }
+                    .break-page { page-break-before: always !important; break-before: page !important; padding-top: 5mm; }
 
                     .print-area { font-family: 'Times New Roman', Times, serif !important; color: black !important; }
                     .text-small { font-size: 9pt !important; line-height: 1.2 !important; }
-                    .print-blue { color: #0000FF !important; -webkit-print-color-adjust: exact !important; }
-                    tr { page-break-inside: avoid !important; }
+                    .print-blue { color: #0000FF !important; }
+                    tr, td { page-break-inside: avoid !important; }
                 }
             `}} />
 
-            {/* MODAL TANDA TANGAN (DUA OPSI) */}
+            {/* MODAL TANDA TANGAN */}
             {showSignaturePad && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 no-print">
                     <div className="bg-white p-6 rounded-3xl shadow-2xl max-w-lg w-full">
@@ -194,14 +202,13 @@ const MinutesDetail: React.FC<{ minute: Minute; onNavigate: (p: Page) => void }>
                 </div>
             </div>
 
-            {/* AREA UTAMA */}
-            <div className="w-full max-w-4xl bg-white rounded-[2rem] shadow-xl border border-slate-200 overflow-hidden">
+            {/* AREA UTAMA (Ditambahkan class main-container) */}
+            <div className="main-container w-full max-w-4xl bg-white rounded-[2rem] shadow-xl border border-slate-200 overflow-hidden px-2 md:px-8 py-8">
                 <table className="print-wrapper print-area w-full text-black">
-                    {/* THEAD AGAR KOP BERULANG */}
                     <thead className="print-header">
                         <tr>
                             <td>
-                                <div className="print-header-padding">
+                                <div className="pb-4">
                                     <div className="flex items-center justify-between pb-1">
                                         <div className="w-[110px] mr-4"><img src={logoUSM} className="w-full h-auto object-contain" /></div>
                                         <div className="flex-1 text-center pr-6">
@@ -224,26 +231,26 @@ const MinutesDetail: React.FC<{ minute: Minute; onNavigate: (p: Page) => void }>
                     <tbody className="print-body">
                         <tr>
                             <td>
-                                <div className="print-content-padding">
-                                    <div className="text-center my-8">
+                                <div>
+                                    <div className="text-center my-6">
                                         <h2 className="text-[14pt] font-bold uppercase underline">NOTULENSI RAPAT</h2>
                                         <p className="text-[12pt] mt-1">Nomor: {currentMinute.id || '...'} /NOT/REK/2026</p>
                                     </div>
 
-                                    <div className="space-y-4 mb-10 text-[12pt]">
-                                        <div className="grid grid-cols-[160px_20px_1fr]"><span>Kegiatan</span><span>:</span><span className="uppercase font-bold">{currentMinute.title}</span></div>
-                                        <div className="grid grid-cols-[160px_20px_1fr]"><span>Hari / Tanggal</span><span>:</span><span>{currentMinute.date ? new Date(currentMinute.date).toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : '-'}</span></div>
-                                        <div className="grid grid-cols-[160px_20px_1fr]"><span>Tempat</span><span>:</span><span>{currentMinute.location || '-'}</span></div>
+                                    <div className="space-y-4 mb-8 text-[12pt]">
+                                        <div className="grid grid-cols-[160px_20px_1fr] break-inside-avoid"><span>Kegiatan</span><span>:</span><span className="uppercase font-bold">{currentMinute.title}</span></div>
+                                        <div className="grid grid-cols-[160px_20px_1fr] break-inside-avoid"><span>Hari / Tanggal</span><span>:</span><span>{currentMinute.date ? new Date(currentMinute.date).toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : '-'}</span></div>
+                                        <div className="grid grid-cols-[160px_20px_1fr] break-inside-avoid"><span>Tempat</span><span>:</span><span>{currentMinute.location || '-'}</span></div>
                                     </div>
 
-                                    <div className="mb-16">
+                                    <div className="mb-12">
                                         <p className="font-bold mb-3 uppercase text-[12pt]">Hasil Pembahasan:</p>
                                         <div className="whitespace-pre-wrap text-justify leading-[1.8] text-[12pt]">
                                             {formatTeksResmi(currentMinute.content)}
                                         </div>
                                     </div>
 
-                                    <table className="w-full text-center text-[12pt] border-none mb-10">
+                                    <table className="w-full text-center text-[12pt] border-none mb-10 break-inside-avoid">
                                         <tbody>
                                             <tr>
                                                 <td className="w-1/2 align-top pb-24 font-normal"><br/><br/>Notulis,</td>
@@ -267,12 +274,15 @@ const MinutesDetail: React.FC<{ minute: Minute; onNavigate: (p: Page) => void }>
                                         </tbody>
                                     </table>
 
+                                    {/* LAMPIRAN FOTO AKAN TAMPIL DI HALAMAN BARU ATAU DI BAWAHNYA JIKA MUAT */}
                                     {currentMinute.documentation && currentMinute.documentation.length > 0 && (
-                                        <div className="break-page pt-10">
-                                            <h3 className="text-center font-bold uppercase underline mb-8">LAMPIRAN DOKUMENTASI</h3>
-                                            <div className="grid grid-cols-2 gap-6">
+                                        <div className="break-page pt-4">
+                                            <h3 className="text-center font-bold uppercase underline mb-6">LAMPIRAN DOKUMENTASI</h3>
+                                            <div className="grid grid-cols-2 gap-4">
                                                 {currentMinute.documentation.map((img, i) => (
-                                                    <div key={i} className="border-2 border-slate-200 p-2 break-inside-avoid shadow-sm"><img src={img} className="w-full h-auto rounded" /></div>
+                                                    <div key={i} className="border-2 border-slate-200 p-2 break-inside-avoid shadow-sm">
+                                                        <img src={img} className="w-full h-auto rounded object-contain max-h-[400px]" alt={`Lampiran ${i+1}`} />
+                                                    </div>
                                                 ))}
                                             </div>
                                         </div>
