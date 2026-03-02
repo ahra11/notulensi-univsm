@@ -22,7 +22,7 @@ const MinutesForm: React.FC<{ onNavigate: (page: Page, data?: any) => void; init
     }, [initialData]);
 
     // ==========================================
-    // MESIN KOMPRESOR ULTRA (DIJAMIN LOLOS GOOGLE SHEETS)
+    // MESIN KOMPRESOR ULTRA (DISETTING UNTUK 3 FOTO)
     // ==========================================
     const compressImage = (file: File): Promise<string> => {
         return new Promise((resolve, reject) => {
@@ -34,9 +34,9 @@ const MinutesForm: React.FC<{ onNavigate: (page: Page, data?: any) => void; init
                 img.onload = () => {
                     const canvas = document.createElement('canvas');
                     
-                    // KOMPRESI EKSTREM: Maksimal 400px (Sangat kecil tapi cukup untuk bukti laporan)
-                    const MAX_WIDTH = 400; 
-                    const MAX_HEIGHT = 400;
+                    // KOMPRESI EKSTREM: Maksimal 320px agar 3 foto muat di 1 sel Google Sheets
+                    const MAX_WIDTH = 320; 
+                    const MAX_HEIGHT = 320;
                     let width = img.width;
                     let height = img.height;
 
@@ -56,8 +56,8 @@ const MinutesForm: React.FC<{ onNavigate: (page: Page, data?: any) => void; init
                         ctx.drawImage(img, 0, 0, width, height);
                     }
 
-                    // Kualitas diturunkan ke 40% agar size Base64-nya di bawah 15.000 karakter
-                    const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.4);
+                    // Kualitas diturunkan ke 35% agar total 3 foto tetap di bawah limit Google
+                    const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.35);
                     resolve(compressedDataUrl);
                 };
                 img.onerror = (error) => reject(error);
@@ -70,16 +70,19 @@ const MinutesForm: React.FC<{ onNavigate: (page: Page, data?: any) => void; init
         const files = e.target.files;
         if (!files || files.length === 0) return;
 
-        // Batasi maksimal 2 foto agar tidak pernah menabrak limit 50.000 karakter Google
-        if (files.length + (formData.documentation?.length || 0) > 2) {
-            alert("MAKSIMAL 2 FOTO!\n\nUntuk mencegah penolakan dari server Google Sheets, mohon batasi lampiran maksimal 2 foto saja per dokumen.");
+        const currentLength = formData.documentation?.length || 0;
+        
+        // Batasi maksimal 3 foto
+        if (files.length + currentLength > 3) {
+            alert("MAKSIMAL 3 FOTO!\n\nUntuk mencegah penolakan dari server Google Sheets, mohon batasi lampiran maksimal 3 foto saja per dokumen.");
             return;
         }
 
         setIsUploading(true);
         try {
+            const allowedNewFiles = 3 - currentLength;
             const compressedImages = await Promise.all(
-                Array.from(files).slice(0, 2).map(file => compressImage(file))
+                Array.from(files).slice(0, allowedNewFiles).map(file => compressImage(file))
             );
 
             setFormData(prev => ({
@@ -139,7 +142,7 @@ const MinutesForm: React.FC<{ onNavigate: (page: Page, data?: any) => void; init
                 <textarea required value={formData.content} onChange={e => setFormData({...formData, content: e.target.value})} className="w-full p-4 bg-white border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-[#252859] outline-none transition-all shadow-sm min-h-[200px]" placeholder="Hasil Pembahasan..." />
 
                 <div className="space-y-3">
-                    <label className="text-[10px] font-black uppercase text-slate-400 ml-2">Lampiran Foto (Maksimal 2 Foto)</label>
+                    <label className="text-[10px] font-black uppercase text-slate-400 ml-2">Lampiran Foto (Maksimal 3 Foto)</label>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         {formData.documentation?.map((img, index) => (
                             <div key={index} className="relative group aspect-video rounded-xl overflow-hidden border border-slate-200 shadow-sm bg-slate-100">
@@ -150,7 +153,7 @@ const MinutesForm: React.FC<{ onNavigate: (page: Page, data?: any) => void; init
                             </div>
                         ))}
                         
-                        {(formData.documentation?.length || 0) < 2 && (
+                        {(formData.documentation?.length || 0) < 3 && (
                             <label className={`flex flex-col items-center justify-center aspect-video rounded-xl border-2 border-dashed ${isUploading ? 'border-amber-300 bg-amber-50 text-amber-500' : 'border-slate-300 hover:border-[#252859] bg-slate-50 hover:bg-[#252859]/5 text-slate-400 hover:text-[#252859]'} cursor-pointer transition-all`}>
                                 {isUploading ? (
                                     <>
