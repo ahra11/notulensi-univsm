@@ -3,8 +3,7 @@
  * Sinkronisasi Online dengan Kontrol Pimpinan
  */
 
-// URL Web App Bapak (Jangan diubah, ini sudah benar)
-const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyZQClI0--BMZZgKrN_62KvpB8HZJgZabvssLYkuSnJ8bPiiP4LlriHSwFeRcy-DmgvKQ/exec";
+const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxgoHAiwsIMVWZPOSmzxfs2lWkSsSnwIAJChhctsEYdtErfHg3ShzWSxY9rldSdWuqV0g/exec";
 
 export const SpreadsheetService = {
     // ==========================================
@@ -20,7 +19,6 @@ export const SpreadsheetService = {
             const response = await fetch(`${WEB_APP_URL}?actionType=read&_t=${Date.now()}`);
             const data = await response.json();
             
-            // MATA-MATA: Memeriksa apa yang sebenarnya dikirim Google ke Aplikasi
             console.log("2. Data mentah dari Google Sheets:", data);
 
             if (data.error) {
@@ -32,31 +30,23 @@ export const SpreadsheetService = {
             
             const sanitizedMinutes = minutes.map((m, i) => ({
                 ...m,
-                id: m.id || `M-RECOVERY-${i}`, // Mencegah ID kosong
+                id: m.id || `M-RECOVERY-${i}`, 
                 status: (m.status === 'SIGNED' && (m.signedby || m.signedBy)) ? 'SIGNED' : 'DRAFT',
                 title: String(m.title || "Tanpa Judul"),
             }));
 
-            // ==========================================
-            // PERBAIKAN ANTI-JEBOL (QUOTA EXCEEDED ERROR FIX)
-            // ==========================================
+            // ANTI-JEBOL CACHE
             try {
-                // Kita buat versi ringan (tanpa foto) khusus untuk disimpan ke memori laptop
-                // Ini mencegah browser error karena memori penuh
                 const lightweightCache = sanitizedMinutes.map(m => {
-                    // Menyalin semua data, tapi mengosongkan bagian dokumentasi/foto
                     const { documentation, ...rest } = m;
                     return { ...rest, documentation: [] };
                 });
-                
                 localStorage.setItem('usm_minutes_cache', JSON.stringify(lightweightCache));
-                console.log("4. Cache versi ringan berhasil disimpan ke memori laptop.");
+                console.log("4. Cache versi ringan berhasil disimpan.");
             } catch (cacheError) {
-                // Jika memori masih kepenuhan, aplikasi tidak akan crash, hanya melewati proses simpan cache
-                console.warn("Peringatan: Memori lokal penuh, melewati proses simpan cache. Aplikasi tetap aman.");
+                console.warn("Peringatan: Memori lokal penuh.");
             }
 
-            // KITA MENGEMBALIKAN DATA ASLI (YANG ADA FOTONYA) KE LAYAR BAPAK
             return sanitizedMinutes;
             
         } catch (error) {
@@ -82,11 +72,7 @@ export const SpreadsheetService = {
     },
 
     async deleteData(id: string) {
-        console.log(`Menghapus data dengan ID: ${id}`);
-        return this.postToCloud({ 
-            id: id, 
-            actionType: 'delete' 
-        });
+        return this.postToCloud({ id: id, actionType: 'delete' });
     },
 
     // ==========================================
@@ -94,36 +80,27 @@ export const SpreadsheetService = {
     // ==========================================
     async getUsers(): Promise<any[]> {
         try {
-            console.log("Mencoba menarik data User dari Cloud...");
             const response = await fetch(`${WEB_APP_URL}?action=getUsers&_t=${Date.now()}`);
             const data = await response.json();
-            
             const usersList = data.users && Array.isArray(data.users) ? data.users : [];
-            
             localStorage.setItem('usm_users', JSON.stringify(usersList));
-            console.log("Berhasil menarik User:", usersList);
             return usersList;
         } catch (error) {
-            console.error("Gagal menarik User dari Cloud:", error);
             const local = localStorage.getItem('usm_users');
             return local ? JSON.parse(local) : [];
         }
     },
 
     async addUser(user: any) {
-        const payload = { action: 'addUser', user: user };
-        return this.postToCloud(payload);
+        return this.postToCloud({ action: 'addUser', user: user });
     },
 
-    // DUA FUNGSI INI WAJIB ADA AGAR SUPER ADMIN BISA EDIT & HAPUS AKUN
     async updateUser(id: string, userData: any) {
-        const payload = { action: 'updateUser', id: id, user: userData };
-        return this.postToCloud(payload);
+        return this.postToCloud({ action: 'updateUser', id: id, user: userData });
     },
 
     async deleteUser(id: string) {
-        const payload = { action: 'deleteUser', id: id };
-        return this.postToCloud(payload);
+        return this.postToCloud({ action: 'deleteUser', id: id });
     },
 
     // ==========================================
@@ -136,11 +113,34 @@ export const SpreadsheetService = {
                 headers: { 'Content-Type': 'text/plain' }, 
                 body: JSON.stringify(payload)
             });
-            const result = await response.json();
-            return result;
+            return await response.json();
         } catch (error) {
             console.error("Gagal mengirim data ke Cloud:", error);
             throw error;
         }
+    },
+
+    // ==========================================
+    // 4. MANAJEMEN JADWAL RAPAT
+    // ==========================================
+    async getSchedules(): Promise<any[]> {
+        try {
+            console.log("Menarik Jadwal Rapat...");
+            const response = await fetch(`${WEB_APP_URL}?action=getSchedules&_t=${Date.now()}`);
+            const data = await response.json();
+            const schedulesList = data.schedules && Array.isArray(data.schedules) ? data.schedules : [];
+            localStorage.setItem('usm_schedules', JSON.stringify(schedulesList));
+            return schedulesList;
+        } catch (error) {
+            return JSON.parse(localStorage.getItem('usm_schedules') || '[]');
+        }
+    },
+
+    async addSchedule(schedule: any) {
+        return this.postToCloud({ action: 'addSchedule', schedule: schedule });
+    },
+
+    async deleteSchedule(id: string) {
+        return this.postToCloud({ action: 'deleteSchedule', id: id });
     }
 };
