@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Page, Minute, MinutesStatus } from '../types';
+import React, { useState, useEffect } from 'react';
+import { Page, Minute } from '../types';
 import { SpreadsheetService } from '../services/spreadsheet';
 
 interface HistoryProps {
@@ -7,152 +7,128 @@ interface HistoryProps {
 }
 
 const History: React.FC<HistoryProps> = ({ onNavigate }) => {
-    const [searchQuery, setSearchQuery] = useState('');
-    const [allHistoryItems, setAllHistoryItems] = useState<Minute[]>([]);
+    const [minutes, setMinutes] = useState<Minute[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [isDeleting, setIsDeleting] = useState<string | null>(null);
+    const [searchTerm, setSearchTerm] = useState('');
 
     useEffect(() => {
-        loadHistory();
+        loadHistoryData();
     }, []);
 
-    const loadHistory = async () => {
-        setIsLoading(true);
+    const loadHistoryData = async () => {
+        // 1. TAMPILKAN CACHE LANGSUNG AGAR TIDAK LAMBAT
+        const cached = JSON.parse(localStorage.getItem('usm_minutes_cache') || '[]');
+        if (cached.length > 0) {
+            setMinutes([...cached].sort((a, b) => b.id.localeCompare(a.id)));
+        }
+
+        // 2. SINKRONISASI LATAR BELAKANG
         try {
-            const data = await SpreadsheetService.fetchAll();
-            setAllHistoryItems(data);
+            const freshData = await SpreadsheetService.fetchAllMinutes();
+            setMinutes([...freshData].sort((a, b) => b.id.localeCompare(a.id)));
         } catch (error) {
-            console.error(error);
+            console.error("Gagal menarik data terbaru:", error);
         } finally {
             setIsLoading(false);
         }
     };
 
-    // PERBAIKAN: Fungsi pencarian ini sekarang kebal terhadap data kosong/null
-    const filteredItems = useMemo(() => {
-        return allHistoryItems.filter(item => {
-            const titleMatch = String(item.title || '').toLowerCase().includes(searchQuery.toLowerCase());
-            const contentMatch = String(item.content || '').toLowerCase().includes(searchQuery.toLowerCase());
-            return titleMatch || contentMatch;
-        });
-    }, [allHistoryItems, searchQuery]);
-
-    const handleDelete = async (id: string, e: React.MouseEvent) => {
-        e.stopPropagation();
-        if (!confirm("Apakah Anda yakin ingin menghapus dokumen ini secara permanen dari cloud?")) return;
-        
-        setIsDeleting(id);
-        try {
-            await SpreadsheetService.deleteData(id);
-            setAllHistoryItems(prev => prev.filter(item => item.id !== id));
-            alert("Dokumen berhasil dihapus dari cloud.");
-        } catch (error) {
-            alert("Gagal menghapus dokumen. Periksa koneksi internet Anda.");
-        } finally {
-            setIsDeleting(null);
-        }
-    };
-
-    const handleEdit = (item: Minute, e: React.MouseEvent) => {
-        e.stopPropagation();
-        onNavigate('form', item);
-    };
+    const filteredMinutes = minutes.filter(m => 
+        m.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
+        (m.location && m.location.toLowerCase().includes(searchTerm.toLowerCase()))
+    );
 
     return (
-        <div className="pb-32 md:pb-10 min-h-screen bg-slate-50/30">
-            <header className="sticky top-0 z-40 bg-white border-b border-slate-100 px-4 md:px-8 pt-6 pb-4 shadow-sm">
-                <div className="flex items-center justify-between mb-6">
-                    <div>
-                        <h1 className="text-xl md:text-2xl font-bold text-slate-800 tracking-tight leading-none">Arsip Notulensi</h1>
-                        <p className="text-[10px] md:text-xs text-slate-400 font-bold uppercase tracking-widest mt-1">Sistem Manajemen Dokumen Terpusat</p>
+        <div className="p-4 md:p-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
+                <div>
+                    <div className="flex items-center gap-3">
+                        <h1 className="text-2xl font-black text-slate-900 tracking-tight">Arsip Notulensi</h1>
+                        {isLoading && <div className="size-4 border-2 border-[#252859] border-t-transparent rounded-full animate-spin"></div>}
                     </div>
-                    <button onClick={loadHistory} className="p-2 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors">
-                        <span className={`material-symbols-outlined text-slate-400 ${isLoading ? 'animate-spin' : ''}`}>sync</span>
+                    <p className="text-sm text-slate-500 font-medium">Riwayat seluruh dokumen rapat Universitas Sapta Mandiri</p>
+                </div>
+
+                <div className="flex gap-4 items-center w-full md:w-auto">
+                    <div className="relative w-full md:w-64">
+                        <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">search</span>
+                        <input 
+                            type="text" 
+                            placeholder="Cari judul rapat..." 
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full h-10 pl-10 pr-4 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#252859] focus:border-none transition-all text-sm font-medium shadow-sm"
+                        />
+                    </div>
+                    <button onClick={() => onNavigate('dashboard')} className="p-2.5 bg-white border border-slate-200 text-slate-500 rounded-xl hover:bg-slate-50 transition-all shadow-sm">
+                        <span className="material-symbols-outlined">home</span>
                     </button>
                 </div>
+            </div>
 
-                <div className="relative group">
-                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg group-focus-within:text-primary transition-colors">search</span>
-                    <input 
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full h-12 pl-10 pr-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-2 focus:ring-[#252859] focus:bg-white text-sm transition-all outline-none" 
-                        placeholder="Cari judul rapat, isi pembahasan, atau agenda..." 
-                        type="text" 
-                    />
+            <div className="bg-white rounded-[2rem] border border-slate-100 shadow-xl overflow-hidden">
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                        <thead>
+                            <tr className="bg-slate-50 border-b border-slate-100">
+                                <th className="p-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Status</th>
+                                <th className="p-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Informasi Rapat</th>
+                                <th className="p-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest hidden md:table-cell">Waktu & Tempat</th>
+                                <th className="p-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-50">
+                            {filteredMinutes.length > 0 ? filteredMinutes.map((meeting) => (
+                                <tr key={meeting.id} className="hover:bg-slate-50/50 transition-colors group">
+                                    <td className="p-5">
+                                        <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-widest ${
+                                            meeting.status === 'SIGNED' ? 'bg-green-50 text-green-600' : 'bg-amber-50 text-amber-600'
+                                        }`}>
+                                            <span className="material-symbols-outlined text-[14px]">
+                                                {meeting.status === 'SIGNED' ? 'verified' : 'edit_document'}
+                                            </span>
+                                            {meeting.status === 'SIGNED' ? 'Disahkan' : 'Draft'}
+                                        </div>
+                                    </td>
+                                    <td className="p-5">
+                                        <p className="font-bold text-slate-900 mb-1 group-hover:text-[#252859] transition-colors">{meeting.title}</p>
+                                        <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                                            <span>{meeting.id}</span>
+                                            <span className="size-1 bg-slate-200 rounded-full"></span>
+                                            <span>Oleh: {meeting.submittedBy}</span>
+                                        </div>
+                                    </td>
+                                    <td className="p-5 hidden md:table-cell">
+                                        <div className="flex flex-col gap-1 text-xs text-slate-500 font-medium">
+                                            <div className="flex items-center gap-2"><span className="material-symbols-outlined text-[14px] text-slate-400">calendar_today</span> {meeting.date}</div>
+                                            <div className="flex items-center gap-2 truncate max-w-[200px]"><span className="material-symbols-outlined text-[14px] text-slate-400">location_on</span> {meeting.location || '-'}</div>
+                                        </div>
+                                    </td>
+                                    <td className="p-5 text-right">
+                                        <button 
+                                            onClick={() => onNavigate('detail', meeting)}
+                                            className="inline-flex items-center gap-2 px-4 py-2 bg-slate-100 text-[#252859] hover:bg-[#252859] hover:text-white rounded-xl text-xs font-bold transition-all shadow-sm"
+                                        >
+                                            Buka Dokumen
+                                            <span className="material-symbols-outlined text-[14px]">open_in_new</span>
+                                        </button>
+                                    </td>
+                                </tr>
+                            )) : (
+                                <tr>
+                                    <td colSpan={4} className="p-10 text-center">
+                                        <div className="size-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-3">
+                                            <span className="material-symbols-outlined text-2xl text-slate-300">search_off</span>
+                                        </div>
+                                        <p className="text-sm font-bold text-slate-900">Data tidak ditemukan</p>
+                                        <p className="text-xs text-slate-500 mt-1">Belum ada notulensi atau pencarian tidak cocok.</p>
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
                 </div>
-            </header>
-
-            <main className="max-w-7xl mx-auto px-5 md:px-8 mt-10">
-                {isLoading ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {[1, 2, 3, 4, 5, 6].map(i => (
-                            <div key={i} className="h-48 bg-slate-200 animate-pulse rounded-3xl"></div>
-                        ))}
-                    </div>
-                ) : filteredItems.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {filteredItems.map((item, index) => (
-                            <div 
-                                key={item.id || `arsip-${index}`} // PERBAIKAN: Mencegah error jika ID kembar
-                                onClick={() => onNavigate('detail', item)}
-                                className="group bg-white border border-slate-100 p-6 rounded-3xl shadow-sm hover:shadow-xl hover:border-[#252859]/20 transition-all cursor-pointer relative"
-                            >
-                                <div className="flex justify-between items-start mb-4">
-                                    <div className={`px-2.5 py-1 rounded-lg text-[9px] font-bold uppercase tracking-wider ${
-                                        item.status === MinutesStatus.SIGNED ? 'bg-green-100 text-green-700' : 
-                                        item.status === MinutesStatus.DRAFT ? 'bg-amber-100 text-amber-700' : 'bg-[#252859]/5 text-[#252859]'
-                                    }`}>
-                                        {item.status || 'DRAFT'}
-                                    </div>
-                                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <button 
-                                            onClick={(e) => handleEdit(item, e)}
-                                            className="size-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center hover:bg-blue-100"
-                                            title="Edit Notulensi"
-                                        >
-                                            <span className="material-symbols-outlined text-sm">edit</span>
-                                        </button>
-                                        <button 
-                                            onClick={(e) => handleDelete(item.id, e)}
-                                            disabled={isDeleting === item.id}
-                                            className="size-8 rounded-lg bg-red-50 text-red-600 flex items-center justify-center hover:bg-red-100"
-                                            title="Hapus Permanen"
-                                        >
-                                            {isDeleting === item.id ? <div className="size-3 border-2 border-red-400 border-t-red-600 rounded-full animate-spin"></div> : <span className="material-symbols-outlined text-sm">delete</span>}
-                                        </button>
-                                    </div>
-                                </div>
-                                
-                                <h3 className="text-base font-bold text-slate-900 group-hover:text-[#252859] leading-tight transition-colors mb-2 line-clamp-2">{item.title || 'Tanpa Judul'}</h3>
-                                <div className="space-y-1">
-                                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight flex items-center gap-1">
-                                        <span className="material-symbols-outlined text-xs">calendar_today</span>
-                                        {item.date ? new Date(item.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Tanpa Tanggal'}
-                                    </p>
-                                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight flex items-center gap-1">
-                                        <span className="material-symbols-outlined text-xs">location_on</span>
-                                        {item.location || 'Kampus Utama'}
-                                    </p>
-                                    {item.updatedAt && <p className="text-[9px] text-slate-300 font-medium truncate mt-2">Update: {item.updatedAt}</p>}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                ) : (
-                    <div className="py-32 text-center">
-                        <span className="material-symbols-outlined text-6xl text-slate-200">folder_open</span>
-                        <p className="text-slate-400 font-bold mt-4 uppercase tracking-widest text-xs">
-                            {searchQuery ? 'Tidak ada hasil untuk pencarian ini' : 'Belum ada arsip notulensi tersimpan'}
-                        </p>
-                        {!searchQuery && (
-                            <button onClick={() => onNavigate('form')} className="mt-4 px-6 py-2 bg-[#252859] text-white rounded-xl text-xs font-bold uppercase tracking-widest shadow-lg shadow-indigo-900/20 hover:bg-black">
-                                Buat Notulensi Baru
-                            </button>
-                        )}
-                    </div>
-                )}
-            </main>
+            </div>
         </div>
     );
 };
