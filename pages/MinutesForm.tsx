@@ -4,7 +4,7 @@ import { SpreadsheetService } from '../services/spreadsheet';
 
 const MinutesForm: React.FC<{ onNavigate: (page: Page, data?: any) => void; initialData?: Minute | null }> = ({ onNavigate, initialData }) => {
     const [isLoading, setIsLoading] = useState(false);
-    const [isUploading, setIsUploading] = useState(false); // Indikator saat foto sedang dikompres
+    const [isUploading, setIsUploading] = useState(false);
     const [formData, setFormData] = useState<Partial<Minute>>({
         title: '',
         date: new Date().toISOString().split('T')[0],
@@ -22,7 +22,7 @@ const MinutesForm: React.FC<{ onNavigate: (page: Page, data?: any) => void; init
     }, [initialData]);
 
     // ==========================================
-    // MESIN KOMPRESOR FOTO OTOMATIS (ANTI ERROR GOOGLE SHEETS)
+    // MESIN KOMPRESOR ULTRA (DIJAMIN LOLOS GOOGLE SHEETS)
     // ==========================================
     const compressImage = (file: File): Promise<string> => {
         return new Promise((resolve, reject) => {
@@ -33,37 +33,31 @@ const MinutesForm: React.FC<{ onNavigate: (page: Page, data?: any) => void; init
                 img.src = event.target?.result as string;
                 img.onload = () => {
                     const canvas = document.createElement('canvas');
-                    // Batas maksimal dimensi gambar agar ringan (800 pixel)
-                    const MAX_WIDTH = 800; 
-                    const MAX_HEIGHT = 800;
+                    
+                    // KOMPRESI EKSTREM: Maksimal 400px (Sangat kecil tapi cukup untuk bukti laporan)
+                    const MAX_WIDTH = 400; 
+                    const MAX_HEIGHT = 400;
                     let width = img.width;
                     let height = img.height;
 
                     if (width > height) {
-                        if (width > MAX_WIDTH) {
-                            height *= MAX_WIDTH / width;
-                            width = MAX_WIDTH;
-                        }
+                        if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
                     } else {
-                        if (height > MAX_HEIGHT) {
-                            width *= MAX_HEIGHT / height;
-                            height = MAX_HEIGHT;
-                        }
+                        if (height > MAX_HEIGHT) { width *= MAX_HEIGHT / height; height = MAX_HEIGHT; }
                     }
 
                     canvas.width = width;
                     canvas.height = height;
                     const ctx = canvas.getContext('2d');
                     
-                    // Latar belakang putih (mencegah background hitam jika foto aslinya PNG transparan)
                     if (ctx) {
                         ctx.fillStyle = "#FFFFFF";
                         ctx.fillRect(0, 0, canvas.width, canvas.height);
                         ctx.drawImage(img, 0, 0, width, height);
                     }
 
-                    // Kompresi ke format JPEG dengan kualitas 60% (Sangat kecil tapi tetap jelas dibaca)
-                    const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.6);
+                    // Kualitas diturunkan ke 40% agar size Base64-nya di bawah 15.000 karakter
+                    const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.4);
                     resolve(compressedDataUrl);
                 };
                 img.onerror = (error) => reject(error);
@@ -72,16 +66,20 @@ const MinutesForm: React.FC<{ onNavigate: (page: Page, data?: any) => void; init
         });
     };
 
-    // FUNGSI UNGGAH GAMBAR YANG SUDAH DIPERBARUI
     const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = e.target.files;
         if (!files || files.length === 0) return;
 
+        // Batasi maksimal 2 foto agar tidak pernah menabrak limit 50.000 karakter Google
+        if (files.length + (formData.documentation?.length || 0) > 2) {
+            alert("MAKSIMAL 2 FOTO!\n\nUntuk mencegah penolakan dari server Google Sheets, mohon batasi lampiran maksimal 2 foto saja per dokumen.");
+            return;
+        }
+
         setIsUploading(true);
         try {
-            // Memproses semua gambar secara bersamaan
             const compressedImages = await Promise.all(
-                Array.from(files).map(file => compressImage(file))
+                Array.from(files).slice(0, 2).map(file => compressImage(file))
             );
 
             setFormData(prev => ({
@@ -89,11 +87,9 @@ const MinutesForm: React.FC<{ onNavigate: (page: Page, data?: any) => void; init
                 documentation: [...(prev.documentation || []), ...compressedImages]
             }));
         } catch (error) {
-            console.error("Gagal memproses gambar:", error);
-            alert("Maaf, terjadi kesalahan saat mengecilkan ukuran gambar.");
+            alert("Gagal memproses gambar.");
         } finally {
             setIsUploading(false);
-            // Reset input file agar bisa pilih file yang sama jika dihapus
             if (e.target) e.target.value = ''; 
         }
     };
@@ -115,12 +111,17 @@ const MinutesForm: React.FC<{ onNavigate: (page: Page, data?: any) => void; init
             ...formData 
         };
         try {
-            // Karena fotonya sudah kecil, proses kirim ke Google Sheets akan sangat cepat dan aman!
-            await SpreadsheetService.saveMinute(minuteData);
+            const response = await SpreadsheetService.saveMinute(minuteData);
+            
+            // CEGAH "FAKE SUCCESS" JIKA GOOGLE MENOLAK
+            if (response && response.success === false) {
+                throw new Error(response.message || response.error || "Data foto masih terlalu besar untuk Google Sheets.");
+            }
+
             alert('Notulensi & Dokumentasi Berhasil Disimpan!');
             onNavigate('history');
-        } catch (error) {
-            alert('Gagal Simpan. Periksa Koneksi Internet.');
+        } catch (error: any) {
+            alert('GAGAL SIMPAN KE SERVER!\n\nPenyebab: ' + error.message);
         } finally { setIsLoading(false); }
     };
 
@@ -129,7 +130,6 @@ const MinutesForm: React.FC<{ onNavigate: (page: Page, data?: any) => void; init
             <h1 className="text-2xl font-black text-[#252859] mb-8">Notulensi & Dokumentasi</h1>
 
             <form onSubmit={handleSubmit} className="space-y-6 max-w-5xl">
-                {/* Input Teks (Judul, Tanggal, Lokasi) */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <input required type="text" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} className="p-4 bg-white border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-[#252859] outline-none transition-all shadow-sm" placeholder="Judul Rapat" />
                     <input required type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} className="p-4 bg-white border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-[#252859] outline-none transition-all shadow-sm" />
@@ -138,9 +138,8 @@ const MinutesForm: React.FC<{ onNavigate: (page: Page, data?: any) => void; init
 
                 <textarea required value={formData.content} onChange={e => setFormData({...formData, content: e.target.value})} className="w-full p-4 bg-white border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-[#252859] outline-none transition-all shadow-sm min-h-[200px]" placeholder="Hasil Pembahasan..." />
 
-                {/* --- BAGIAN DOKUMENTASI GAMBAR --- */}
                 <div className="space-y-3">
-                    <label className="text-[10px] font-black uppercase text-slate-400 ml-2">Lampiran Foto Kegiatan</label>
+                    <label className="text-[10px] font-black uppercase text-slate-400 ml-2">Lampiran Foto (Maksimal 2 Foto)</label>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         {formData.documentation?.map((img, index) => (
                             <div key={index} className="relative group aspect-video rounded-xl overflow-hidden border border-slate-200 shadow-sm bg-slate-100">
@@ -151,20 +150,22 @@ const MinutesForm: React.FC<{ onNavigate: (page: Page, data?: any) => void; init
                             </div>
                         ))}
                         
-                        <label className={`flex flex-col items-center justify-center aspect-video rounded-xl border-2 border-dashed ${isUploading ? 'border-amber-300 bg-amber-50 text-amber-500' : 'border-slate-300 hover:border-[#252859] bg-slate-50 hover:bg-[#252859]/5 text-slate-400 hover:text-[#252859]'} cursor-pointer transition-all`}>
-                            {isUploading ? (
-                                <>
-                                    <div className="size-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin mb-2"></div>
-                                    <span className="text-[9px] font-bold uppercase tracking-widest">Memproses...</span>
-                                </>
-                            ) : (
-                                <>
-                                    <span className="material-symbols-outlined text-2xl mb-1">add_a_photo</span>
-                                    <span className="text-[9px] font-bold uppercase tracking-widest">Unggah Foto</span>
-                                </>
-                            )}
-                            <input type="file" accept="image/*" multiple onChange={handleImageUpload} className="hidden" disabled={isUploading} />
-                        </label>
+                        {(formData.documentation?.length || 0) < 2 && (
+                            <label className={`flex flex-col items-center justify-center aspect-video rounded-xl border-2 border-dashed ${isUploading ? 'border-amber-300 bg-amber-50 text-amber-500' : 'border-slate-300 hover:border-[#252859] bg-slate-50 hover:bg-[#252859]/5 text-slate-400 hover:text-[#252859]'} cursor-pointer transition-all`}>
+                                {isUploading ? (
+                                    <>
+                                        <div className="size-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin mb-2"></div>
+                                        <span className="text-[9px] font-bold uppercase tracking-widest">Memproses...</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <span className="material-symbols-outlined text-2xl mb-1">add_a_photo</span>
+                                        <span className="text-[9px] font-bold uppercase tracking-widest">Unggah Foto</span>
+                                    </>
+                                )}
+                                <input type="file" accept="image/*" multiple onChange={handleImageUpload} className="hidden" disabled={isUploading} />
+                            </label>
+                        )}
                     </div>
                 </div>
 
