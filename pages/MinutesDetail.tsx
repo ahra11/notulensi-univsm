@@ -31,6 +31,25 @@ const MinutesDetail: React.FC<{ minute: Minute; onNavigate: (p: Page) => void }>
             .trim();
     };
 
+    // ==========================================
+    // ALAT PENERJEMAH FOTO (ANTI ERROR)
+    // ==========================================
+    const getDocumentationImages = () => {
+        if (!currentMinute.documentation) return [];
+        // Jika sudah berbentuk Array, langsung gunakan
+        if (Array.isArray(currentMinute.documentation)) return currentMinute.documentation;
+        // Jika berbentuk Teks String (karena efek Google Sheets), terjemahkan dulu
+        try {
+            return JSON.parse(currentMinute.documentation);
+        } catch (error) {
+            console.error("Gagal membaca format foto:", error);
+            return [];
+        }
+    };
+
+    const docsImages = getDocumentationImages();
+
+    // --- LOGIKA TANDA TANGAN ---
     const startDrawing = (e: any) => {
         const canvas = canvasRef.current;
         if (!canvas) return;
@@ -99,9 +118,9 @@ const MinutesDetail: React.FC<{ minute: Minute; onNavigate: (p: Page) => void }>
             
             if (response.success) {
                 const updatedData = { ...currentMinute, status: 'SIGNED' as any, signedBy: currentUser.name, signature: signatureBase64 };
-                
                 setCurrentMinute(updatedData);
                 
+                // Update Cache dengan data yang utuh (termasuk foto)
                 const cache = JSON.parse(localStorage.getItem('usm_minutes_cache') || '[]');
                 const newCache = cache.map((m: any) => m.id === currentMinute.id ? updatedData : m);
                 localStorage.setItem('usm_minutes_cache', JSON.stringify(newCache));
@@ -117,39 +136,17 @@ const MinutesDetail: React.FC<{ minute: Minute; onNavigate: (p: Page) => void }>
     return (
         <div className="p-4 md:p-8 bg-slate-50 min-h-screen flex flex-col items-center">
             
-            {/* PERBAIKAN CSS CETAK (KERTAS A4 RAPI) */}
             <style dangerouslySetInnerHTML={{ __html: `
                 @media print {
                     @page { size: A4 portrait; margin: 15mm; }
-                    
-                    body, html { 
-                        margin: 0 !important; 
-                        padding: 0 !important; 
-                        background: white !important; 
-                        -webkit-print-color-adjust: exact !important; 
-                        print-color-adjust: exact !important;
-                    }
-                    
+                    body, html { margin: 0 !important; padding: 0 !important; background: white !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
                     .no-print { display: none !important; }
-                    
-                    .main-container { 
-                        box-shadow: none !important; 
-                        border: none !important; 
-                        width: 100% !important; 
-                        max-width: 100% !important; 
-                        padding: 0 !important; 
-                        margin: 0 !important;
-                        border-radius: 0 !important;
-                    }
-                    
+                    .main-container { box-shadow: none !important; border: none !important; width: 100% !important; max-width: 100% !important; padding: 0 !important; margin: 0 !important; border-radius: 0 !important; }
                     .print-wrapper { display: table; width: 100%; border-collapse: collapse; }
                     .print-header { display: table-header-group; }
                     .print-body { display: table-row-group; }
-                    
-                    /* Mencegah foto/tabel terpotong */
                     .break-inside-avoid { page-break-inside: avoid !important; break-inside: avoid !important; }
                     .break-page { page-break-before: always !important; break-before: page !important; padding-top: 5mm; }
-
                     .print-area { font-family: 'Times New Roman', Times, serif !important; color: black !important; }
                     .text-small { font-size: 9pt !important; line-height: 1.2 !important; }
                     .print-blue { color: #0000FF !important; }
@@ -202,7 +199,6 @@ const MinutesDetail: React.FC<{ minute: Minute; onNavigate: (p: Page) => void }>
                 </div>
             </div>
 
-            {/* AREA UTAMA (Ditambahkan class main-container) */}
             <div className="main-container w-full max-w-4xl bg-white rounded-[2rem] shadow-xl border border-slate-200 overflow-hidden px-2 md:px-8 py-8">
                 <table className="print-wrapper print-area w-full text-black">
                     <thead className="print-header">
@@ -274,12 +270,12 @@ const MinutesDetail: React.FC<{ minute: Minute; onNavigate: (p: Page) => void }>
                                         </tbody>
                                     </table>
 
-                                    {/* LAMPIRAN FOTO AKAN TAMPIL DI HALAMAN BARU ATAU DI BAWAHNYA JIKA MUAT */}
-                                    {currentMinute.documentation && currentMinute.documentation.length > 0 && (
+                                    {/* MENGGUNAKAN docsImages HASIL TERJEMAHAN ANTI-ERROR */}
+                                    {docsImages && docsImages.length > 0 && (
                                         <div className="break-page pt-4">
                                             <h3 className="text-center font-bold uppercase underline mb-6">LAMPIRAN DOKUMENTASI</h3>
                                             <div className="grid grid-cols-2 gap-4">
-                                                {currentMinute.documentation.map((img, i) => (
+                                                {docsImages.map((img: string, i: number) => (
                                                     <div key={i} className="border-2 border-slate-200 p-2 break-inside-avoid shadow-sm">
                                                         <img src={img} className="w-full h-auto rounded object-contain max-h-[400px]" alt={`Lampiran ${i+1}`} />
                                                     </div>
