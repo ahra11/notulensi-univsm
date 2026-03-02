@@ -17,7 +17,6 @@ const Schedules: React.FC<SchedulesProps> = ({ onNavigate }) => {
         title: '', date: '', time: '', location: '', agenda: ''
     });
 
-    // MENARIK JADWAL DARI GOOGLE SHEETS SAAT HALAMAN DIBUKA
     useEffect(() => {
         loadSchedules();
     }, []);
@@ -26,7 +25,8 @@ const Schedules: React.FC<SchedulesProps> = ({ onNavigate }) => {
         setIsLoading(true);
         try {
             const data = await SpreadsheetService.getSchedules();
-            setSchedules(data);
+            const sortedData = [...data].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+            setSchedules(sortedData);
         } catch (error) {
             console.error(error);
         } finally {
@@ -34,7 +34,6 @@ const Schedules: React.FC<SchedulesProps> = ({ onNavigate }) => {
         }
     };
 
-    // MENGIRIM JADWAL BARU KE GOOGLE SHEETS
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
@@ -48,7 +47,7 @@ const Schedules: React.FC<SchedulesProps> = ({ onNavigate }) => {
 
         try {
             await SpreadsheetService.addSchedule(newSchedule);
-            const updatedSchedules = [newSchedule, ...schedules];
+            const updatedSchedules = [newSchedule, ...schedules].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
             setSchedules(updatedSchedules);
             
             setFormData({ title: '', date: '', time: '', location: '', agenda: '' });
@@ -61,7 +60,6 @@ const Schedules: React.FC<SchedulesProps> = ({ onNavigate }) => {
         }
     };
 
-    // MENGHAPUS JADWAL DARI GOOGLE SHEETS
     const handleDelete = async (id: string) => {
         if (window.confirm('Hapus jadwal rapat ini untuk semua orang?')) {
             setIsLoading(true);
@@ -76,33 +74,48 @@ const Schedules: React.FC<SchedulesProps> = ({ onNavigate }) => {
         }
     };
 
+    // FITUR BARU: Pendeteksi Link Otomatis
+    const renderLocation = (loc: string) => {
+        if (!loc) return '-';
+        const isLink = loc.includes('meet.google.com') || loc.includes('zoom.us') || loc.includes('http');
+        
+        if (isLink) {
+            let finalUrl = loc;
+            if (loc.includes('meet.google.com') && !loc.includes('http')) {
+                finalUrl = 'https://' + loc;
+            }
+            return (
+                <a href={finalUrl} target="_blank" rel="noopener noreferrer" className="bg-blue-50 text-blue-600 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 hover:bg-blue-600 hover:text-white transition-all w-max mt-1">
+                    <span className="material-symbols-outlined text-[14px]">videocam</span>
+                    Gabung Rapat Online
+                </a>
+            );
+        }
+        return <span className="text-xs font-medium truncate">{loc}</span>;
+    };
+
     return (
         <div className="p-4 md:p-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            {/* BAGIAN ATAS (TETAP SAMA) */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
                 <div>
                     <div className="flex items-center gap-3">
                         <h1 className="text-2xl font-black text-slate-900 tracking-tight">Penjadwalan Rapat</h1>
                         {isLoading && <div className="size-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>}
                     </div>
-                    <p className="text-sm text-slate-500 font-medium">Atur dan pantau agenda pertemuan civitas USM (Global Sync)</p>
+                    <p className="text-sm text-slate-500 font-medium">Atur dan pantau agenda pertemuan civitas USM</p>
                 </div>
 
                 <div className="flex gap-2">
                     <button onClick={loadSchedules} className="p-3 bg-slate-100 text-slate-500 rounded-2xl hover:bg-slate-200 transition-all">
                         <span className="material-symbols-outlined">sync</span>
                     </button>
-                    <button 
-                        onClick={() => setIsFormOpen(!isFormOpen)}
-                        className="flex items-center justify-center gap-2 px-6 py-3 bg-[#252859] text-white rounded-2xl font-bold text-sm uppercase tracking-widest shadow-lg shadow-indigo-900/20 hover:brightness-110 transition-all"
-                    >
+                    <button onClick={() => setIsFormOpen(!isFormOpen)} className="flex items-center justify-center gap-2 px-6 py-3 bg-[#252859] text-white rounded-2xl font-bold text-sm uppercase tracking-widest shadow-lg hover:brightness-110 transition-all">
                         <span className="material-symbols-outlined">{isFormOpen ? 'close' : 'calendar_add_on'}</span>
                         {isFormOpen ? 'Batal' : 'Buat Jadwal Baru'}
                     </button>
                 </div>
             </div>
 
-            {/* FORM INPUT (TETAP SAMA) */}
             {isFormOpen && (
                 <div className="mb-10 bg-white p-6 md:p-8 rounded-[2.5rem] border border-slate-100 shadow-xl animate-in zoom-in-95 duration-300">
                     <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -119,8 +132,10 @@ const Schedules: React.FC<SchedulesProps> = ({ onNavigate }) => {
                             <input required type="time" value={formData.time} onChange={(e) => setFormData({...formData, time: e.target.value})} className="w-full p-4 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-[#252859] transition-all text-sm font-medium" />
                         </div>
                         <div className="md:col-span-2 space-y-2">
-                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Lokasi atau Tautan Meet</label>
-                            <input required type="text" placeholder="Gedung Rektorat Lt. 2 / meet.google.com/..." value={formData.location} onChange={(e) => setFormData({...formData, location: e.target.value})} className="w-full p-4 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-[#252859] transition-all text-sm font-medium" />
+                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Lokasi / Tautan Google Meet</label>
+                            {/* BANTUAN TEKS AGAR USER TAHU */}
+                            <input required type="text" placeholder="Gedung Rektorat Lt. 2 / meet.google.com/abc-defg-hij" value={formData.location} onChange={(e) => setFormData({...formData, location: e.target.value})} className="w-full p-4 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-[#252859] transition-all text-sm font-medium" />
+                            <p className="text-[9px] text-slate-400 ml-1">Tips: Masukkan link meet.google.com agar berubah jadi tombol otomatis.</p>
                         </div>
                         <div className="md:col-span-2 space-y-2">
                             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Agenda Pembahasan</label>
@@ -135,10 +150,9 @@ const Schedules: React.FC<SchedulesProps> = ({ onNavigate }) => {
                 </div>
             )}
 
-            {/* DAFTAR JADWAL */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {schedules.length > 0 ? schedules.map((schedule) => (
-                    <div key={schedule.id} className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-md transition-all group relative">
+                    <div key={schedule.id} className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-md transition-all group relative flex flex-col h-full">
                         <div className="flex justify-between items-start mb-4">
                             <div className="p-3 bg-blue-50 rounded-2xl text-blue-600">
                                 <span className="material-symbols-outlined text-2xl">event</span>
@@ -147,7 +161,6 @@ const Schedules: React.FC<SchedulesProps> = ({ onNavigate }) => {
                                 <span className="px-3 py-1 bg-amber-50 text-amber-600 text-[10px] font-bold rounded-full uppercase">
                                     {schedule.status || 'UPCOMING'}
                                 </span>
-                                {/* HANYA PEMBUAT JADWAL ATAU SUPER ADMIN YANG BISA MENGHAPUS */}
                                 {(currentUser.role === 'SUPER_ADMIN' || currentUser.name === schedule.createdBy) && (
                                     <button onClick={() => handleDelete(schedule.id)} className="p-1 text-slate-300 hover:text-red-500 transition-colors">
                                         <span className="material-symbols-outlined text-xl">delete</span>
@@ -156,9 +169,9 @@ const Schedules: React.FC<SchedulesProps> = ({ onNavigate }) => {
                             </div>
                         </div>
 
-                        <h3 className="text-lg font-bold text-slate-900 mb-2 leading-tight">{schedule.title}</h3>
+                        <h3 className="text-lg font-bold text-slate-900 mb-2 leading-tight flex-1">{schedule.title}</h3>
                         
-                        <div className="space-y-2 mb-6">
+                        <div className="space-y-3 mb-6">
                             <div className="flex items-center gap-2 text-slate-500">
                                 <span className="material-symbols-outlined text-sm">calendar_today</span>
                                 <span className="text-xs font-medium">{schedule.date}</span>
@@ -167,13 +180,14 @@ const Schedules: React.FC<SchedulesProps> = ({ onNavigate }) => {
                                 <span className="material-symbols-outlined text-sm">schedule</span>
                                 <span className="text-xs font-medium">{schedule.time} WIB</span>
                             </div>
-                            <div className="flex items-center gap-2 text-slate-500">
-                                <span className="material-symbols-outlined text-sm">location_on</span>
-                                <span className="text-xs font-medium truncate">{schedule.location}</span>
+                            <div className="flex items-start gap-2 text-slate-500">
+                                <span className="material-symbols-outlined text-sm mt-0.5">location_on</span>
+                                {/* LINK MEET OTOMATIS */}
+                                <div>{renderLocation(schedule.location)}</div>
                             </div>
                         </div>
 
-                        <div className="pt-4 border-t border-slate-50 flex items-center justify-between">
+                        <div className="pt-4 border-t border-slate-50 flex items-center justify-between mt-auto">
                             <div className="flex flex-col">
                                 <span className="text-[8px] text-slate-400 font-bold uppercase tracking-widest">Dibuat Oleh</span>
                                 <span className="text-[10px] font-bold text-slate-700">{schedule.createdBy}</span>
