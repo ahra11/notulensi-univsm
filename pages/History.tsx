@@ -18,10 +18,7 @@ const History: React.FC<HistoryProps> = ({ onNavigate }) => {
     }, []);
 
     const loadHistoryData = async () => {
-        // ==========================================
-        // PERBAIKAN: PEMBASMI MEMORI ERROR (QUOTA EXCEEDED)
-        // Menghapus paksa memori lama yang berisi foto raksasa
-        // ==========================================
+        // Hapus paksa memori lama yang berisi foto raksasa
         localStorage.removeItem('usm_minutes_cache'); 
         console.log("Memori cache lama yang rusak berhasil dibersihkan.");
 
@@ -29,11 +26,11 @@ const History: React.FC<HistoryProps> = ({ onNavigate }) => {
             const freshData = await SpreadsheetService.fetchAllMinutes();
             setMinutes([...freshData].sort((a, b) => b.id.localeCompare(a.id)));
             
-            // Simpan cache baru yang sudah ringan (tanpa membuat error)
+            // Simpan cache baru yang sudah ringan
             try {
                 localStorage.setItem('usm_minutes_cache', JSON.stringify(freshData));
             } catch (e) {
-                console.warn("Memori laptop masih terdeteksi penuh.");
+                console.warn("Memori laptop masih terdeteksi penuh, melewati penyimpanan cache...");
             }
         } catch (error) {
             console.error("Gagal menarik data terbaru:", error);
@@ -60,7 +57,9 @@ const History: React.FC<HistoryProps> = ({ onNavigate }) => {
                 
                 try {
                     localStorage.setItem('usm_minutes_cache', JSON.stringify(newMinutes));
-                } catch (e) { /* Abaikan jika memori penuh */ }
+                } catch (e) { 
+                    console.warn("Abaikan peringatan memori penuh, Cloud sudah berhasil terhapus."); 
+                }
 
                 alert("Dokumen berhasil dihapus secara permanen.");
             } catch (error: any) {
@@ -116,63 +115,4 @@ const History: React.FC<HistoryProps> = ({ onNavigate }) => {
                         </thead>
                         <tbody className="divide-y divide-slate-50">
                             {filteredMinutes.length > 0 ? filteredMinutes.map((meeting) => (
-                                <tr key={meeting.id} className="hover:bg-slate-50/50 transition-colors group">
-                                    <td className="p-5">
-                                        <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-widest ${
-                                            meeting.status === 'SIGNED' ? 'bg-green-50 text-green-600' : 'bg-amber-50 text-amber-600'
-                                        }`}>
-                                            <span className="material-symbols-outlined text-[14px]">
-                                                {meeting.status === 'SIGNED' ? 'verified' : 'edit_document'}
-                                            </span>
-                                            {meeting.status === 'SIGNED' ? 'Disahkan' : 'Draft'}
-                                        </div>
-                                    </td>
-                                    <td className="p-5">
-                                        <p className="font-bold text-slate-900 mb-1">{meeting.title}</p>
-                                        <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                                            <span>{meeting.id}</span>
-                                            <span className="size-1 bg-slate-200 rounded-full"></span>
-                                            <span>Oleh: {meeting.submittedBy}</span>
-                                        </div>
-                                    </td>
-                                    <td className="p-5 hidden md:table-cell">
-                                        <div className="flex flex-col gap-1 text-xs text-slate-500 font-medium">
-                                            <div className="flex items-center gap-2"><span className="material-symbols-outlined text-[14px] text-slate-400">calendar_today</span> {meeting.date}</div>
-                                        </div>
-                                    </td>
-                                    <td className="p-5">
-                                        <div className="flex items-center justify-end gap-2">
-                                            {(currentUser.role === 'PIMPINAN' || currentUser.role === 'SUPER_ADMIN') && (
-                                                <>
-                                                    <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); onNavigate('form', meeting); }} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all" title="Edit Dokumen">
-                                                        <span className="material-symbols-outlined text-sm">edit</span>
-                                                    </button>
-                                                    <button onClick={(e) => handleDelete(e, meeting.id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" title="Hapus Dokumen">
-                                                        <span className="material-symbols-outlined text-sm">delete</span>
-                                                    </button>
-                                                </>
-                                            )}
-                                            
-                                            <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); onNavigate('detail', meeting); }} className="inline-flex items-center gap-2 px-4 py-2 bg-slate-100 text-[#252859] hover:bg-[#252859] hover:text-white rounded-xl text-xs font-bold transition-all shadow-sm">
-                                                Buka
-                                                <span className="material-symbols-outlined text-[14px]">open_in_new</span>
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            )) : (
-                                <tr>
-                                    <td colSpan={4} className="p-10 text-center">
-                                        <p className="text-sm font-bold text-slate-900">Data tidak ditemukan</p>
-                                    </td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    );
-};
-
-export default History;
+                                <tr key={meeting.id} className="hover:bg-slate-
