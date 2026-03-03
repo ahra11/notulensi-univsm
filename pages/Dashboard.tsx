@@ -38,7 +38,17 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
 
     const updateDisplay = (minutes: Minute[], schedules: Schedule[]) => {
         const sortedMinutes = [...minutes].sort((a, b) => b.id.localeCompare(a.id));
-        const sortedSchedules = [...schedules].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+        
+        // PENDETEKSI WAKTU: Filter hanya rapat yang belum lewat waktunya
+        const now = new Date();
+        const upcomingOnly = schedules.filter(sch => {
+            if (!sch.date || !sch.time) return true;
+            const schDate = new Date(`${sch.date}T${sch.time}`);
+            return schDate >= now; // Hanya ambil yang masih di masa depan
+        });
+
+        // Urutkan jadwal terdekat dari hari ini
+        const sortedSchedules = [...upcomingOnly].sort((a, b) => new Date(`${a.date}T${a.time}`).getTime() - new Date(`${b.date}T${b.time}`).getTime());
 
         setStats({
             total: minutes.length,
@@ -49,13 +59,11 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
         setUpcomingSchedules(sortedSchedules.slice(0, 3));
     };
 
-    // FITUR BARU: Pendeteksi Link Otomatis
     const renderLocation = (loc: string) => {
         if (!loc) return '-';
         const isLink = loc.includes('meet.google.com') || loc.includes('zoom.us') || loc.includes('http');
         
         if (isLink) {
-            // Memastikan link memiliki https:// agar bisa dibuka browser
             let finalUrl = loc;
             if (loc.includes('meet.google.com') && !loc.includes('http')) {
                 finalUrl = 'https://' + loc;
@@ -72,7 +80,6 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
 
     return (
         <div className="p-4 md:p-8 animate-in fade-in duration-700">
-            {/* WELCOME BANNER */}
             <div className="mb-10 bg-[#252859] p-8 rounded-[2.5rem] text-white relative overflow-hidden shadow-2xl shadow-indigo-900/20">
                 <div className="relative z-10">
                     <h1 className="text-2xl md:text-3xl font-black mb-2 flex items-center gap-3">
@@ -84,7 +91,6 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
                 <span className="material-symbols-outlined absolute -right-4 -bottom-4 text-[12rem] opacity-10 rotate-12">school</span>
             </div>
 
-            {/* STATS CARDS */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
                 <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm hover:border-primary/20 transition-colors">
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Notulensi</p>
@@ -101,7 +107,6 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-                {/* JADWAL RAPAT */}
                 <section>
                     <div className="flex items-center justify-between mb-6">
                         <h2 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
@@ -123,7 +128,6 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
                                         <span className="size-1 bg-slate-200 rounded-full"></span>
                                         <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">{sch.time} WIB</p>
                                     </div>
-                                    {/* LINK MEET OTOMATIS */}
                                     <div className="text-xs mt-1">
                                         {renderLocation(sch.location)}
                                     </div>
@@ -132,13 +136,12 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
                         )) : (
                             <div className="bg-slate-50 border-2 border-dashed border-slate-200 rounded-3xl p-8 text-center text-slate-400">
                                 <span className="material-symbols-outlined text-4xl mb-2">event_busy</span>
-                                <p className="text-xs font-bold uppercase tracking-widest">Belum ada agenda rapat</p>
+                                <p className="text-xs font-bold uppercase tracking-widest">Belum ada agenda rapat terdekat</p>
                             </div>
                         )}
                     </div>
                 </section>
 
-                {/* NOTULENSI */}
                 <section>
                     <div className="flex items-center justify-between mb-6">
                         <h2 className="text-xl font-black text-slate-900 tracking-tight">Notulensi Terakhir</h2>
