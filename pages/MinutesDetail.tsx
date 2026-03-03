@@ -4,7 +4,7 @@ import { SpreadsheetService } from '../services/spreadsheet';
 import logoUSM from '../logo-usm.png';
 
 const MinutesDetail: React.FC<{ minute: Minute; onNavigate: (p: Page) => void }> = ({ minute, onNavigate }) => {
-    const [currentMinute, setCurrentMinute] = useState<Minute | null>(null);
+    const [currentMinute, setCurrentMinute] = useState<Minute>(minute);
     const [isVerifying, setIsVerifying] = useState(false);
     const [showSignaturePad, setShowSignaturePad] = useState(false);
     const [signatureMethod, setSignatureMethod] = useState<'draw' | 'upload'>('draw');
@@ -15,7 +15,6 @@ const MinutesDetail: React.FC<{ minute: Minute; onNavigate: (p: Page) => void }>
 
     const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
 
-    // Mencegah crash jika data belum masuk
     useEffect(() => {
         if (minute) setCurrentMinute(minute);
     }, [minute]);
@@ -27,7 +26,6 @@ const MinutesDetail: React.FC<{ minute: Minute; onNavigate: (p: Page) => void }>
         return String(teks).replace(/[ \t]+/g, ' ').replace(/(\n\s*){3,}/g, '\n\n').trim();
     };
 
-    // Alat Anti-Crash untuk Foto
     const getDocumentationImages = () => {
         if (!currentMinute || !currentMinute.documentation) return [];
         if (Array.isArray(currentMinute.documentation)) return currentMinute.documentation;
@@ -76,7 +74,8 @@ const MinutesDetail: React.FC<{ minute: Minute; onNavigate: (p: Page) => void }>
                     const canvas = canvasRef.current;
                     const ctx = canvas?.getContext('2d');
                     if (ctx && canvas) {
-                        ctx.clearRect(0, 0, canvas.width, canvas.height);
+                        ctx.fillStyle = "#FFFFFF";
+                        ctx.fillRect(0, 0, canvas.width, canvas.height);
                         ctx.drawImage(img, 50, 10, 300, 180); 
                     }
                 };
@@ -86,11 +85,35 @@ const MinutesDetail: React.FC<{ minute: Minute; onNavigate: (p: Page) => void }>
         }
     };
 
+    const clearCanvas = () => {
+        const canvas = canvasRef.current;
+        const ctx = canvas?.getContext('2d');
+        if (ctx && canvas) {
+            ctx.fillStyle = "#FFFFFF";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+    };
+
+    // ==========================================
+    // PERBAIKAN: PENGESAHAN DENGAN KOMPRESI TTD 
+    // ==========================================
     const submitVerify = async () => {
-        if (!currentMinute) return;
         const canvas = canvasRef.current;
         if (!canvas) return;
-        const signatureBase64 = canvas.toDataURL('image/png');
+
+        // Trik agar Tanda Tangan ukurannya sangat kecil (JPEG 40%)
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = canvas.width;
+        tempCanvas.height = canvas.height;
+        const ctx = tempCanvas.getContext('2d');
+        if (ctx) {
+            ctx.fillStyle = "#FFFFFF";
+            ctx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+            ctx.drawImage(canvas, 0, 0);
+        }
+        
+        // Kompresi tanda tangan agar lolos Google Sheets
+        const signatureBase64 = tempCanvas.toDataURL('image/jpeg', 0.4);
 
         setIsVerifying(true);
         try {
@@ -116,25 +139,14 @@ const MinutesDetail: React.FC<{ minute: Minute; onNavigate: (p: Page) => void }>
                 setShowSignaturePad(false);
                 alert("Notulensi Berhasil Disahkan!");
             } else {
-                throw new Error("Ditolak Server");
+                throw new Error("Ditolak Server Google Sheets.");
             }
-        } catch (error) {
-            alert("Gagal mengesahkan ke server Cloud.");
+        } catch (error: any) {
+            alert("GAGAL MENGESAHKAN!\n\nPastikan URL Google Script sudah benar.\nError Server: " + error.message);
         } finally { setIsVerifying(false); }
     };
 
-    // LAYAR LOADING JIKA DATA BELUM SIAP
-    if (!currentMinute) {
-        return (
-            <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-                <div className="flex flex-col items-center gap-4">
-                    <div className="size-10 border-4 border-[#252859] border-t-transparent rounded-full animate-spin"></div>
-                    <p className="text-[#252859] font-bold animate-pulse">Menyiapkan Dokumen...</p>
-                </div>
-            </div>
-        );
-    }
-
+    // PERBAIKAN: Layar Loading Dihapus agar tidak macet. Data langsung ditampilkan.
     return (
         <div className="p-4 md:p-8 bg-slate-50 min-h-screen flex flex-col items-center">
             
@@ -153,6 +165,7 @@ const MinutesDetail: React.FC<{ minute: Minute; onNavigate: (p: Page) => void }>
                     .text-small { font-size: 9pt !important; line-height: 1.2 !important; }
                     .print-blue { color: #0000FF !important; }
                     tr, td { page-break-inside: avoid !important; }
+                    a { text-decoration: none !important; color: #0000FF !important; }
                 }
             `}} />
 
@@ -168,7 +181,7 @@ const MinutesDetail: React.FC<{ minute: Minute; onNavigate: (p: Page) => void }>
                             </div>
                         </div>
                         
-                        <div className="relative border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50 mb-6 h-[220px] overflow-hidden">
+                        <div className="relative border-2 border-dashed border-slate-200 rounded-2xl mb-6 h-[220px] overflow-hidden bg-white">
                             <canvas ref={canvasRef} width={400} height={200} className="w-full h-full bg-white cursor-crosshair" onMouseDown={startDrawing} onMouseMove={draw} onMouseUp={() => setIsDrawing(false)} onTouchStart={startDrawing} onTouchMove={draw} onTouchEnd={() => setIsDrawing(false)} />
                             {signatureMethod === 'upload' && (
                                 <div className="absolute inset-0 bg-white flex flex-col items-center justify-center">
@@ -180,7 +193,7 @@ const MinutesDetail: React.FC<{ minute: Minute; onNavigate: (p: Page) => void }>
                         </div>
 
                         <div className="flex justify-between items-center">
-                            <button onClick={() => { const ctx = canvasRef.current?.getContext('2d'); ctx?.clearRect(0,0,400,200); }} className="text-red-500 font-bold text-sm hover:underline">Hapus Coretan</button>
+                            <button onClick={clearCanvas} className="text-red-500 font-bold text-sm hover:underline">Hapus Coretan</button>
                             <div className="flex gap-2">
                                 <button onClick={() => setShowSignaturePad(false)} className="px-5 py-2.5 bg-slate-100 rounded-xl text-sm font-bold">Batal</button>
                                 <button onClick={submitVerify} disabled={isVerifying} className="px-5 py-2.5 bg-green-600 text-white rounded-xl text-sm font-bold shadow-lg shadow-green-900/20">{isVerifying ? 'Menyimpan...' : 'Simpan & Sahkan'}</button>
@@ -241,12 +254,23 @@ const MinutesDetail: React.FC<{ minute: Minute; onNavigate: (p: Page) => void }>
                                         <div className="grid grid-cols-[160px_20px_1fr] break-inside-avoid"><span>Tempat</span><span>:</span><span>{currentMinute.location || '-'}</span></div>
                                     </div>
 
-                                    <div className="mb-12">
+                                    <div className="mb-10">
                                         <p className="font-bold mb-3 uppercase text-[12pt]">Hasil Pembahasan:</p>
                                         <div className="whitespace-pre-wrap text-justify leading-[1.8] text-[12pt]">
                                             {formatTeksResmi(currentMinute.content)}
                                         </div>
                                     </div>
+
+                                    {/* PERBAIKAN: MUNCULKAN LINK GDRIVE JIKA ADA */}
+                                    {(currentMinute as any).gdriveLink && (
+                                        <div className="mb-10 break-inside-avoid p-4 border border-blue-100 bg-blue-50/30 rounded-xl">
+                                            <p className="font-bold mb-2 uppercase text-[11pt] text-slate-700">Tautan Lampiran Ekstra (Google Drive / Lainnya):</p>
+                                            <a href={(currentMinute as any).gdriveLink} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 underline text-[11pt] break-all flex items-start gap-2">
+                                                <span className="material-symbols-outlined text-[14pt] mt-0.5">link</span>
+                                                {(currentMinute as any).gdriveLink}
+                                            </a>
+                                        </div>
+                                    )}
 
                                     <table className="w-full text-center text-[12pt] border-none mb-10 break-inside-avoid">
                                         <tbody>
@@ -272,13 +296,14 @@ const MinutesDetail: React.FC<{ minute: Minute; onNavigate: (p: Page) => void }>
                                         </tbody>
                                     </table>
 
+                                    {/* PREVIEW FOTO */}
                                     {docsImages && docsImages.length > 0 && (
                                         <div className="break-page pt-4">
                                             <h3 className="text-center font-bold uppercase underline mb-6">LAMPIRAN DOKUMENTASI</h3>
                                             <div className="grid grid-cols-2 gap-4">
                                                 {docsImages.map((img: string, i: number) => (
-                                                    <div key={i} className="border-2 border-slate-200 p-2 break-inside-avoid shadow-sm">
-                                                        <img src={img} className="w-full h-auto rounded object-contain max-h-[400px]" alt={`Lampiran ${i+1}`} />
+                                                    <div key={i} className="border-2 border-slate-200 p-2 break-inside-avoid shadow-sm flex items-center justify-center bg-slate-50 min-h-[200px]">
+                                                        <img src={img} className="max-w-full h-auto object-contain max-h-[350px] mix-blend-multiply" alt={`Lampiran ${i+1}`} />
                                                     </div>
                                                 ))}
                                             </div>
