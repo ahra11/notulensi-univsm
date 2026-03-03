@@ -3,7 +3,7 @@
  * Sinkronisasi Online dengan Kontrol Pimpinan
  */
 
-const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxLqCLOSeFqFBN7gc_5NNqMNVMho28lRD-i-TCEUXrEZUWwv9qdLo8I4VG-cdOb3b5RRw/exec";
+const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz_HkRN5AXxzs8zEQ4ueXwkOqLblsY84iTmwvuGiNV0JcCVllJdO5NMI9Mv_jSfMd8ZNg/exec";
 
 export const SpreadsheetService = {
     // ==========================================
