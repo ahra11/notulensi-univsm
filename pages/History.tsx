@@ -18,24 +18,22 @@ const History: React.FC<HistoryProps> = ({ onNavigate }) => {
     }, []);
 
     const loadHistoryData = async () => {
-        try {
-            const cached = JSON.parse(localStorage.getItem('usm_minutes_cache') || '[]');
-            if (cached.length > 0) {
-                setMinutes([...cached].sort((a, b) => b.id.localeCompare(a.id)));
-            }
-        } catch (e) {
-            console.warn("Cache kosong atau rusak");
-        }
+        // ==========================================
+        // PERBAIKAN: PEMBASMI MEMORI ERROR (QUOTA EXCEEDED)
+        // Menghapus paksa memori lama yang berisi foto raksasa
+        // ==========================================
+        localStorage.removeItem('usm_minutes_cache'); 
+        console.log("Memori cache lama yang rusak berhasil dibersihkan.");
 
         try {
             const freshData = await SpreadsheetService.fetchAllMinutes();
             setMinutes([...freshData].sort((a, b) => b.id.localeCompare(a.id)));
             
-            // Simpan ke memori dengan pengaman (agar tidak error jika penuh)
+            // Simpan cache baru yang sudah ringan (tanpa membuat error)
             try {
                 localStorage.setItem('usm_minutes_cache', JSON.stringify(freshData));
-            } catch (storageError) {
-                console.warn("Memori lokal penuh, melewati penyimpanan cache...");
+            } catch (e) {
+                console.warn("Memori laptop masih terdeteksi penuh.");
             }
         } catch (error) {
             console.error("Gagal menarik data terbaru:", error);
@@ -44,7 +42,6 @@ const History: React.FC<HistoryProps> = ({ onNavigate }) => {
         }
     };
 
-    // PERBAIKAN: Tombol Hapus Anti-Jebol Memori
     const handleDelete = async (e: React.MouseEvent, id: string) => {
         e.preventDefault();
         e.stopPropagation(); 
@@ -58,16 +55,12 @@ const History: React.FC<HistoryProps> = ({ onNavigate }) => {
                     throw new Error(response.message || "Ditolak oleh Server Google");
                 }
                 
-                // Update tampilan layar
                 const newMinutes = minutes.filter(m => m.id !== id);
                 setMinutes(newMinutes);
-
-                // Update memori lokal dengan pengaman ketat
+                
                 try {
                     localStorage.setItem('usm_minutes_cache', JSON.stringify(newMinutes));
-                } catch (storageError) {
-                    console.warn("Memori penuh, tidak bisa simpan cache penghapusan. Namun Cloud sudah terhapus.");
-                }
+                } catch (e) { /* Abaikan jika memori penuh */ }
 
                 alert("Dokumen berhasil dihapus secara permanen.");
             } catch (error: any) {
