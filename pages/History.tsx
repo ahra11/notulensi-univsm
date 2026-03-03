@@ -35,7 +35,6 @@ const MinutesDetail: React.FC<{ minute: Minute; onNavigate: (p: Page) => void }>
 
     const docsImages = getDocumentationImages();
 
-    // --- LOGIKA TANDA TANGAN ---
     const startDrawing = (e: any) => {
         const canvas = canvasRef.current;
         if (!canvas) return;
@@ -183,7 +182,6 @@ const MinutesDetail: React.FC<{ minute: Minute; onNavigate: (p: Page) => void }>
                 }
             `}} />
 
-            {/* MODAL TANDA TANGAN */}
             {showSignaturePad && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 no-print">
                     <div className="bg-white p-6 rounded-3xl shadow-2xl max-w-lg w-full">
@@ -217,7 +215,6 @@ const MinutesDetail: React.FC<{ minute: Minute; onNavigate: (p: Page) => void }>
                 </div>
             )}
 
-            {/* BAR MENU */}
             <div className="w-full max-w-4xl flex justify-between items-center mb-6 no-print">
                 <button onClick={() => onNavigate('history')} className="text-[#252859] font-bold flex items-center gap-2 hover:underline"><span className="material-symbols-outlined">arrow_back</span> Kembali</button>
                 <div className="flex gap-2">
