@@ -12,17 +12,25 @@ const MinutesForm: React.FC<{ onNavigate: (page: Page, data?: any) => void; init
         agenda: '',
         content: '',
         documentation: [], 
+        gdriveLink: '', // FITUR BARU: LINK GOOGLE DRIVE
         status: 'DRAFT'
     });
 
     const user = JSON.parse(localStorage.getItem('currentUser') || '{}');
 
+    // Jika sedang dalam mode EDIT, masukkan data lama ke form
     useEffect(() => {
-        if (initialData) setFormData(initialData);
+        if (initialData) {
+            setFormData({
+                ...initialData,
+                // Pastikan jika edit, foto yang rusak sebelumnya kita kosongkan agar bisa diisi foto baru yang sudah dikompres
+                documentation: Array.isArray(initialData.documentation) ? initialData.documentation : []
+            });
+        }
     }, [initialData]);
 
     // ==========================================
-    // MESIN KOMPRESOR ULTRA (DISETTING UNTUK 3 FOTO)
+    // MESIN KOMPRESOR HYPER (MAX 4 FOTO)
     // ==========================================
     const compressImage = (file: File): Promise<string> => {
         return new Promise((resolve, reject) => {
@@ -33,10 +41,8 @@ const MinutesForm: React.FC<{ onNavigate: (page: Page, data?: any) => void; init
                 img.src = event.target?.result as string;
                 img.onload = () => {
                     const canvas = document.createElement('canvas');
-                    
-                    // KOMPRESI EKSTREM: Maksimal 320px agar 3 foto muat di 1 sel Google Sheets
-                    const MAX_WIDTH = 320; 
-                    const MAX_HEIGHT = 320;
+                    const MAX_WIDTH = 300; 
+                    const MAX_HEIGHT = 300;
                     let width = img.width;
                     let height = img.height;
 
@@ -56,8 +62,7 @@ const MinutesForm: React.FC<{ onNavigate: (page: Page, data?: any) => void; init
                         ctx.drawImage(img, 0, 0, width, height);
                     }
 
-                    // Kualitas diturunkan ke 35% agar total 3 foto tetap di bawah limit Google
-                    const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.35);
+                    const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.3);
                     resolve(compressedDataUrl);
                 };
                 img.onerror = (error) => reject(error);
@@ -72,15 +77,14 @@ const MinutesForm: React.FC<{ onNavigate: (page: Page, data?: any) => void; init
 
         const currentLength = formData.documentation?.length || 0;
         
-        // Batasi maksimal 3 foto
-        if (files.length + currentLength > 3) {
-            alert("MAKSIMAL 3 FOTO!\n\nUntuk mencegah penolakan dari server Google Sheets, mohon batasi lampiran maksimal 3 foto saja per dokumen.");
+        if (files.length + currentLength > 4) {
+            alert("MAKSIMAL 4 FOTO!\n\nMohon batasi lampiran maksimal 4 foto saja agar tidak ditolak oleh server.");
             return;
         }
 
         setIsUploading(true);
         try {
-            const allowedNewFiles = 3 - currentLength;
+            const allowedNewFiles = 4 - currentLength;
             const compressedImages = await Promise.all(
                 Array.from(files).slice(0, allowedNewFiles).map(file => compressImage(file))
             );
@@ -107,21 +111,34 @@ const MinutesForm: React.FC<{ onNavigate: (page: Page, data?: any) => void; init
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
+        
         const minuteData = { 
             id: initialData?.id || `M-${Date.now()}`, 
-            submittedBy: user.name, 
-            createdAt: new Date().toISOString(), 
+            submittedBy: initialData?.submittedBy || user.name, 
+            createdAt: initialData?.createdAt || new Date().toISOString(), 
             ...formData 
         };
-        try {
-            const response = await SpreadsheetService.saveMinute(minuteData);
-            
-            // CEGAH "FAKE SUCCESS" JIKA GOOGLE MENOLAK
-            if (response && response.success === false) {
-                throw new Error(response.message || response.error || "Data foto masih terlalu besar untuk Google Sheets.");
-            }
 
-            alert('Notulensi & Dokumentasi Berhasil Disimpan!');
+        // PERBAIKAN: Jika ini proses Edit, gunakan 'update'. Jika baru, gunakan 'create'
+        const payload = {
+            ...minuteData,
+            actionType: initialData ? 'update' : 'create'
+        };
+
+        try {
+            const response = await SpreadsheetService.postToCloud(payload);
+            if (response && response.success === false) {
+                throw new Error(response.message || response.error || "Ditolak Google Sheets.");
+            }
+            alert(initialData ? 'Penyelamatan Data Arsip Berhasil Diperbarui!' : 'Notulensi & Dokumentasi Berhasil Disimpan!');
+            
+            // Perbarui memori lokal
+            const cache = JSON.parse(localStorage.getItem('usm_minutes_cache') || '[]');
+            if (initialData) {
+                const updatedCache = cache.map((m: any) => m.id === minuteData.id ? minuteData : m);
+                localStorage.setItem('usm_minutes_cache', JSON.stringify(updatedCache));
+            }
+            
             onNavigate('history');
         } catch (error: any) {
             alert('GAGAL SIMPAN KE SERVER!\n\nPenyebab: ' + error.message);
@@ -130,7 +147,12 @@ const MinutesForm: React.FC<{ onNavigate: (page: Page, data?: any) => void; init
 
     return (
         <div className="p-4 md:p-8 animate-in fade-in duration-500">
-            <h1 className="text-2xl font-black text-[#252859] mb-8">Notulensi & Dokumentasi</h1>
+            <div className="flex justify-between items-center mb-8">
+                <h1 className="text-2xl font-black text-[#252859]">
+                    {initialData ? 'Edit & Pulihkan Arsip' : 'Notulensi & Dokumentasi'}
+                </h1>
+                {initialData && <span className="bg-amber-100 text-amber-700 px-3 py-1 rounded-xl text-xs font-bold">Mode Edit Dokumen</span>}
+            </div>
 
             <form onSubmit={handleSubmit} className="space-y-6 max-w-5xl">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -141,8 +163,14 @@ const MinutesForm: React.FC<{ onNavigate: (page: Page, data?: any) => void; init
 
                 <textarea required value={formData.content} onChange={e => setFormData({...formData, content: e.target.value})} className="w-full p-4 bg-white border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-[#252859] outline-none transition-all shadow-sm min-h-[200px]" placeholder="Hasil Pembahasan..." />
 
+                {/* FITUR BARU: Link GDrive */}
+                <div>
+                    <label className="text-[10px] font-black uppercase text-slate-400 ml-2">Tautan Ekstra (Opsional)</label>
+                    <input type="url" value={formData.gdriveLink || ''} onChange={e => setFormData({...formData, gdriveLink: e.target.value})} className="w-full mt-1 p-4 bg-white border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-[#252859] outline-none transition-all shadow-sm" placeholder="Link Google Drive untuk file besar / Video rapat..." />
+                </div>
+
                 <div className="space-y-3">
-                    <label className="text-[10px] font-black uppercase text-slate-400 ml-2">Lampiran Foto (Maksimal 3 Foto)</label>
+                    <label className="text-[10px] font-black uppercase text-slate-400 ml-2">Lampiran Foto (Maksimal 4 Foto)</label>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         {formData.documentation?.map((img, index) => (
                             <div key={index} className="relative group aspect-video rounded-xl overflow-hidden border border-slate-200 shadow-sm bg-slate-100">
@@ -153,7 +181,7 @@ const MinutesForm: React.FC<{ onNavigate: (page: Page, data?: any) => void; init
                             </div>
                         ))}
                         
-                        {(formData.documentation?.length || 0) < 3 && (
+                        {(formData.documentation?.length || 0) < 4 && (
                             <label className={`flex flex-col items-center justify-center aspect-video rounded-xl border-2 border-dashed ${isUploading ? 'border-amber-300 bg-amber-50 text-amber-500' : 'border-slate-300 hover:border-[#252859] bg-slate-50 hover:bg-[#252859]/5 text-slate-400 hover:text-[#252859]'} cursor-pointer transition-all`}>
                                 {isUploading ? (
                                     <>
@@ -173,7 +201,7 @@ const MinutesForm: React.FC<{ onNavigate: (page: Page, data?: any) => void; init
                 </div>
 
                 <button type="submit" disabled={isLoading || isUploading} className="w-full py-5 bg-[#252859] text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl hover:bg-indigo-900 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
-                    {isLoading ? 'Mengunggah Data ke Cloud...' : 'Simpan Notulensi & Foto'}
+                    {isLoading ? 'Menyimpan Data...' : (initialData ? 'Perbarui Arsip Lama' : 'Simpan Notulensi & Foto')}
                 </button>
             </form>
         </div>
