@@ -3,7 +3,7 @@ import { Minute, Page } from '../types';
 import { SpreadsheetService } from '../services/spreadsheet';
 import logoUSM from '../logo-usm.png';
 
-const MinutesDetail: React.FC<{ minute: Minute; onNavigate: (p: Page) => void }> = ({ minute, onNavigate }) => {
+const MinutesDetail: React.FC<{ minute: Minute | null; onNavigate: (p: Page) => void }> = ({ minute, onNavigate }) => {
     const [currentMinute, setCurrentMinute] = useState<Minute | null>(null);
     const [isVerifying, setIsVerifying] = useState(false);
     const [showSignaturePad, setShowSignaturePad] = useState(false);
@@ -13,7 +13,13 @@ const MinutesDetail: React.FC<{ minute: Minute; onNavigate: (p: Page) => void }>
     const [isDrawing, setIsDrawing] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+    let currentUser = { name: 'Pimpinan', role: 'PIMPINAN' };
+    try {
+       const storedUser = localStorage.getItem('currentUser');
+       if (storedUser) currentUser = JSON.parse(storedUser);
+    } catch (e) {
+       console.warn("Memori User Kosong");
+    }
 
     useEffect(() => {
         if (minute) setCurrentMinute(minute);
@@ -29,8 +35,12 @@ const MinutesDetail: React.FC<{ minute: Minute; onNavigate: (p: Page) => void }>
     const getDocumentationImages = () => {
         if (!currentMinute || !currentMinute.documentation) return [];
         if (Array.isArray(currentMinute.documentation)) return currentMinute.documentation;
-        try { return JSON.parse(String(currentMinute.documentation)); } 
-        catch (error) { return []; }
+        try { 
+            return JSON.parse(String(currentMinute.documentation)); 
+        } catch (error) { 
+            console.warn("Format Dokumentasi Bukan JSON");
+            return []; 
+        }
     };
 
     const docsImages = getDocumentationImages();
@@ -132,7 +142,7 @@ const MinutesDetail: React.FC<{ minute: Minute; onNavigate: (p: Page) => void }>
                     const newCache = cache.map((m: any) => m.id === currentMinute.id ? updatedData : m);
                     localStorage.setItem('usm_minutes_cache', JSON.stringify(newCache));
                 } catch (e) {
-                    console.warn("Memori penuh, tapi data sukses di cloud.");
+                    console.warn("Memori lokal penuh, abaikan.");
                 }
 
                 setShowSignaturePad(false);
@@ -150,8 +160,8 @@ const MinutesDetail: React.FC<{ minute: Minute; onNavigate: (p: Page) => void }>
             <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
                 <div className="bg-white p-8 rounded-3xl shadow-xl text-center max-w-md w-full border border-slate-100">
                     <span className="material-symbols-outlined text-6xl text-amber-500 mb-4 block">warning</span>
-                    <h2 className="text-xl font-bold text-slate-900 mb-2">Dokumen Gagal Dimuat</h2>
-                    <p className="text-slate-500 text-sm mb-6">Terjadi gangguan saat membaca data. Jangan khawatir, arsip Anda aman di Server.</p>
+                    <h2 className="text-xl font-bold text-slate-900 mb-2">Arsip Belum Dipilih</h2>
+                    <p className="text-slate-500 text-sm mb-6">Silakan kembali ke daftar riwayat arsip lalu klik tombol 'Lihat' pada dokumen yang Anda inginkan.</p>
                     <button onClick={() => onNavigate('history')} className="px-6 py-3 bg-[#252859] text-white rounded-xl font-bold w-full hover:bg-indigo-900 transition-all">
                         Kembali ke Arsip
                     </button>
