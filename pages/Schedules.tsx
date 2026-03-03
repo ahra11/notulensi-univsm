@@ -25,7 +25,8 @@ const Schedules: React.FC<SchedulesProps> = ({ onNavigate }) => {
         setIsLoading(true);
         try {
             const data = await SpreadsheetService.getSchedules();
-            const sortedData = [...data].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+            // Urutkan jadwal: yang terbaru/mendatang di atas
+            const sortedData = [...data].sort((a, b) => new Date(`${a.date}T${a.time}`).getTime() - new Date(`${b.date}T${b.time}`).getTime());
             setSchedules(sortedData);
         } catch (error) {
             console.error(error);
@@ -47,7 +48,7 @@ const Schedules: React.FC<SchedulesProps> = ({ onNavigate }) => {
 
         try {
             await SpreadsheetService.addSchedule(newSchedule);
-            const updatedSchedules = [newSchedule, ...schedules].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+            const updatedSchedules = [newSchedule, ...schedules].sort((a, b) => new Date(`${a.date}T${a.time}`).getTime() - new Date(`${b.date}T${b.time}`).getTime());
             setSchedules(updatedSchedules);
             
             setFormData({ title: '', date: '', time: '', location: '', agenda: '' });
@@ -74,7 +75,7 @@ const Schedules: React.FC<SchedulesProps> = ({ onNavigate }) => {
         }
     };
 
-    // FITUR BARU: Pendeteksi Link Otomatis
+    // FITUR PENDETEKSI LINK
     const renderLocation = (loc: string) => {
         if (!loc) return '-';
         const isLink = loc.includes('meet.google.com') || loc.includes('zoom.us') || loc.includes('http');
@@ -92,6 +93,13 @@ const Schedules: React.FC<SchedulesProps> = ({ onNavigate }) => {
             );
         }
         return <span className="text-xs font-medium truncate">{loc}</span>;
+    };
+
+    // FITUR BARU: PENDETEKSI WAKTU OTOMATIS
+    const getScheduleStatus = (dateStr: string, timeStr: string) => {
+        const scheduleDateTime = new Date(`${dateStr}T${timeStr}`);
+        const now = new Date();
+        return scheduleDateTime < now ? 'SELESAI' : 'MENDATANG';
     };
 
     return (
@@ -133,7 +141,6 @@ const Schedules: React.FC<SchedulesProps> = ({ onNavigate }) => {
                         </div>
                         <div className="md:col-span-2 space-y-2">
                             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Lokasi / Tautan Google Meet</label>
-                            {/* BANTUAN TEKS AGAR USER TAHU */}
                             <input required type="text" placeholder="Gedung Rektorat Lt. 2 / meet.google.com/abc-defg-hij" value={formData.location} onChange={(e) => setFormData({...formData, location: e.target.value})} className="w-full p-4 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-[#252859] transition-all text-sm font-medium" />
                             <p className="text-[9px] text-slate-400 ml-1">Tips: Masukkan link meet.google.com agar berubah jadi tombol otomatis.</p>
                         </div>
@@ -151,58 +158,63 @@ const Schedules: React.FC<SchedulesProps> = ({ onNavigate }) => {
             )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {schedules.length > 0 ? schedules.map((schedule) => (
-                    <div key={schedule.id} className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-md transition-all group relative flex flex-col h-full">
-                        <div className="flex justify-between items-start mb-4">
-                            <div className="p-3 bg-blue-50 rounded-2xl text-blue-600">
-                                <span className="material-symbols-outlined text-2xl">event</span>
+                {schedules.length > 0 ? schedules.map((schedule) => {
+                    const status = getScheduleStatus(schedule.date, schedule.time);
+                    
+                    return (
+                        <div key={schedule.id} className={`p-6 rounded-[2rem] border transition-all group relative flex flex-col h-full ${status === 'SELESAI' ? 'bg-slate-50 border-slate-100 opacity-70 hover:opacity-100' : 'bg-white border-slate-200 shadow-sm hover:shadow-md'}`}>
+                            <div className="flex justify-between items-start mb-4">
+                                <div className={`p-3 rounded-2xl ${status === 'SELESAI' ? 'bg-slate-200 text-slate-500' : 'bg-blue-50 text-blue-600'}`}>
+                                    <span className="material-symbols-outlined text-2xl">event</span>
+                                </div>
+                                <div className="flex gap-2">
+                                    <span className={`px-3 py-1 text-[10px] font-bold rounded-full uppercase ${status === 'SELESAI' ? 'bg-slate-200 text-slate-600' : 'bg-amber-50 text-amber-600'}`}>
+                                        {status}
+                                    </span>
+                                    {(currentUser.role === 'SUPER_ADMIN' || currentUser.name === schedule.createdBy) && (
+                                        <button onClick={() => handleDelete(schedule.id)} className="p-1 text-slate-300 hover:text-red-500 transition-colors">
+                                            <span className="material-symbols-outlined text-xl">delete</span>
+                                        </button>
+                                    )}
+                                </div>
                             </div>
-                            <div className="flex gap-2">
-                                <span className="px-3 py-1 bg-amber-50 text-amber-600 text-[10px] font-bold rounded-full uppercase">
-                                    {schedule.status || 'UPCOMING'}
-                                </span>
-                                {(currentUser.role === 'SUPER_ADMIN' || currentUser.name === schedule.createdBy) && (
-                                    <button onClick={() => handleDelete(schedule.id)} className="p-1 text-slate-300 hover:text-red-500 transition-colors">
-                                        <span className="material-symbols-outlined text-xl">delete</span>
-                                    </button>
-                                )}
-                            </div>
-                        </div>
 
-                        <h3 className="text-lg font-bold text-slate-900 mb-2 leading-tight flex-1">{schedule.title}</h3>
-                        
-                        <div className="space-y-3 mb-6">
-                            <div className="flex items-center gap-2 text-slate-500">
-                                <span className="material-symbols-outlined text-sm">calendar_today</span>
-                                <span className="text-xs font-medium">{schedule.date}</span>
+                            <h3 className={`text-lg font-bold mb-2 leading-tight flex-1 ${status === 'SELESAI' ? 'text-slate-600 line-through decoration-slate-300' : 'text-slate-900'}`}>
+                                {schedule.title}
+                            </h3>
+                            
+                            <div className="space-y-3 mb-6">
+                                <div className="flex items-center gap-2 text-slate-500">
+                                    <span className="material-symbols-outlined text-sm">calendar_today</span>
+                                    <span className="text-xs font-medium">{schedule.date}</span>
+                                </div>
+                                <div className="flex items-center gap-2 text-slate-500">
+                                    <span className="material-symbols-outlined text-sm">schedule</span>
+                                    <span className="text-xs font-medium">{schedule.time} WIB</span>
+                                </div>
+                                <div className="flex items-start gap-2 text-slate-500">
+                                    <span className="material-symbols-outlined text-sm mt-0.5">location_on</span>
+                                    <div>{renderLocation(schedule.location)}</div>
+                                </div>
                             </div>
-                            <div className="flex items-center gap-2 text-slate-500">
-                                <span className="material-symbols-outlined text-sm">schedule</span>
-                                <span className="text-xs font-medium">{schedule.time} WIB</span>
-                            </div>
-                            <div className="flex items-start gap-2 text-slate-500">
-                                <span className="material-symbols-outlined text-sm mt-0.5">location_on</span>
-                                {/* LINK MEET OTOMATIS */}
-                                <div>{renderLocation(schedule.location)}</div>
-                            </div>
-                        </div>
 
-                        <div className="pt-4 border-t border-slate-50 flex items-center justify-between mt-auto">
-                            <div className="flex flex-col">
-                                <span className="text-[8px] text-slate-400 font-bold uppercase tracking-widest">Dibuat Oleh</span>
-                                <span className="text-[10px] font-bold text-slate-700">{schedule.createdBy}</span>
+                            <div className="pt-4 border-t border-slate-200/60 flex items-center justify-between mt-auto">
+                                <div className="flex flex-col">
+                                    <span className="text-[8px] text-slate-400 font-bold uppercase tracking-widest">Dibuat Oleh</span>
+                                    <span className="text-[10px] font-bold text-slate-700">{schedule.createdBy}</span>
+                                </div>
+                                <button onClick={() => onNavigate('form')} className="size-8 rounded-full bg-slate-200 text-slate-500 flex items-center justify-center hover:bg-[#252859] hover:text-white transition-all" title="Buat Notulensi dari Jadwal ini">
+                                    <span className="material-symbols-outlined text-sm">edit_note</span>
+                                </button>
                             </div>
-                            <button onClick={() => onNavigate('form')} className="size-8 rounded-full bg-slate-50 text-slate-400 flex items-center justify-center hover:bg-[#252859] hover:text-white transition-all" title="Buat Notulensi dari Jadwal ini">
-                                <span className="material-symbols-outlined text-sm">edit_note</span>
-                            </button>
                         </div>
-                    </div>
-                )) : (
+                    );
+                }) : (
                     <div className="col-span-full py-20 text-center">
                         <div className="size-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
                             <span className="material-symbols-outlined text-4xl text-slate-200">calendar_today</span>
                         </div>
-                        <p className="text-slate-400 font-medium">Belum ada jadwal rapat mendatang.</p>
+                        <p className="text-slate-400 font-medium">Belum ada jadwal rapat.</p>
                     </div>
                 )}
             </div>
