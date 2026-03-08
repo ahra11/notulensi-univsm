@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
-import { Page, Minute, MinutesStatus } from '../types';
+import { Page, Minute } from '../types';
 import { SpreadsheetService } from '../services/spreadsheet';
 
 interface ReportsProps {
@@ -27,11 +26,11 @@ const Reports: React.FC<ReportsProps> = ({ onNavigate }) => {
         }
     };
 
-    // 1. Hitung Statistik Utama
+    // 1. Hitung Statistik Utama (Perbaikan Status)
     const stats = useMemo(() => {
         const total = minutes.length;
-        const draft = minutes.filter(m => m.status === MinutesStatus.DRAFT).length;
-        const signed = minutes.filter(m => m.status === MinutesStatus.SIGNED).length;
+        const draft = minutes.filter(m => m.status === 'DRAFT').length;
+        const signed = minutes.filter(m => m.status === 'SIGNED').length;
         
         return [
             { label: 'Total Rapat', value: total.toString(), icon: 'groups', color: 'bg-primary' },
@@ -66,7 +65,7 @@ const Reports: React.FC<ReportsProps> = ({ onNavigate }) => {
         }));
     }, [minutes]);
 
-    // 3. Hitung Kontributor Teraktif
+    // 3. Hitung Kontributor Teraktif (Perbaikan Status)
     const topContributors = useMemo(() => {
         const groups: Record<string, { name: string, total: number, signed: number }> = {};
         
@@ -74,7 +73,7 @@ const Reports: React.FC<ReportsProps> = ({ onNavigate }) => {
             const name = m.submittedBy || 'Anonim';
             if (!groups[name]) groups[name] = { name, total: 0, signed: 0 };
             groups[name].total++;
-            if (m.status === MinutesStatus.SIGNED) groups[name].signed++;
+            if (m.status === 'SIGNED') groups[name].signed++;
         });
 
         return Object.values(groups)
@@ -98,7 +97,7 @@ const Reports: React.FC<ReportsProps> = ({ onNavigate }) => {
                     <button onClick={loadData} className="p-2.5 text-slate-400 hover:bg-slate-50 rounded-xl transition-colors">
                         <span className={`material-symbols-outlined ${isLoading ? 'animate-spin' : ''}`}>sync</span>
                     </button>
-                    <button onClick={() => window.print()} className="px-5 py-2.5 bg-primary text-white rounded-xl font-bold text-xs uppercase tracking-widest flex items-center gap-2 shadow-lg shadow-primary/20">
+                    <button onClick={() => window.print()} className="px-5 py-2.5 bg-[#252859] text-white rounded-xl font-bold text-xs uppercase tracking-widest flex items-center gap-2 shadow-lg">
                         <span className="material-symbols-outlined text-lg">download</span> Unduh PDF
                     </button>
                 </div>
@@ -124,16 +123,16 @@ const Reports: React.FC<ReportsProps> = ({ onNavigate }) => {
                 <section className="space-y-8">
                     <div className="flex items-center justify-between">
                         <h2 className="text-lg font-bold flex items-center gap-2">
-                            <span className="size-2 bg-primary rounded-full"></span> Aktivitas Rapat Bulanan
+                            <span className="size-2 bg-[#252859] rounded-full"></span> Aktivitas Rapat Bulanan
                         </h2>
-                        <span className="text-[10px] font-bold text-primary bg-primary/5 px-4 py-1.5 rounded-full uppercase tracking-widest">Data Real-time</span>
+                        <span className="text-[10px] font-bold text-[#252859] bg-[#252859]/5 px-4 py-1.5 rounded-full uppercase tracking-widest">Data Real-time</span>
                     </div>
                     <div className="h-64 flex items-end justify-between gap-4 bg-slate-50/50 p-6 md:p-10 rounded-[3rem] border border-slate-100">
                         {monthlyActivity.map((d, i) => (
                             <div key={i} className="flex-1 flex flex-col items-center gap-4 group">
                                 <div className="text-[10px] font-bold text-slate-400 uppercase opacity-0 group-hover:opacity-100 transition-opacity">{d.count}</div>
                                 <div 
-                                    className="w-full max-w-[40px] bg-primary rounded-t-xl transition-all duration-700 shadow-lg shadow-primary/10 relative" 
+                                    className="w-full max-w-[40px] bg-[#252859] rounded-t-xl transition-all duration-700 shadow-lg relative" 
                                     style={{ height: isLoading ? '0%' : d.percent }}
                                 >
                                     <div className="absolute inset-0 bg-white/10 rounded-t-xl opacity-0 group-hover:opacity-100"></div>
@@ -173,7 +172,7 @@ const Reports: React.FC<ReportsProps> = ({ onNavigate }) => {
                                             <tr key={i} className="hover:bg-slate-50 transition-colors">
                                                 <td className="px-6 py-4 font-bold text-slate-700">
                                                     <div className="flex items-center gap-3">
-                                                        <div className="size-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px]">
+                                                        <div className="size-8 rounded-full bg-[#252859]/10 text-[#252859] flex items-center justify-center text-[10px]">
                                                             {row.name.charAt(0)}
                                                         </div>
                                                         {row.name}
