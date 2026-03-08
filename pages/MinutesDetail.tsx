@@ -15,15 +15,30 @@ const MinutesDetail: React.FC<{ minute: Minute | null; onNavigate: (p: Page) => 
 
     let currentUser = { name: 'Pimpinan', role: 'PIMPINAN' };
     try {
-       const storedUser = localStorage.getItem('currentUser');
-       if (storedUser) currentUser = JSON.parse(storedUser);
+        const storedUser = localStorage.getItem('currentUser');
+        if (storedUser) currentUser = JSON.parse(storedUser);
     } catch (e) {
-       console.warn("Memori User Kosong");
+        console.warn("Memori User Kosong");
     }
 
     useEffect(() => {
         if (minute) setCurrentMinute(minute);
     }, [minute]);
+
+    // ==========================================
+    // FUNGSI KONVERTER LINK GOOGLE DRIVE (BARU)
+    // ==========================================
+    const getDirectImg = (url: string) => {
+        if (!url) return '';
+        // Jika link mengandung pattern Google Drive, ubah ke format uc (User Content)
+        if (url.includes('drive.google.com/file/d/')) {
+            const match = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+            if (match && match[1]) {
+                return `https://drive.google.com/uc?export=view&id=${match[1]}`;
+            }
+        }
+        return url; // Kembalikan apa adanya jika bukan Drive atau format Base64 lama
+    };
 
     const handlePrint = () => { window.print(); };
 
@@ -301,7 +316,7 @@ const MinutesDetail: React.FC<{ minute: Minute | null; onNavigate: (p: Page) => 
                                                     Mengesahkan,<br/>Rektor
                                                     {currentMinute.signature && (
                                                         <div className="h-[80px] flex items-center justify-center my-1">
-                                                            <img src={currentMinute.signature} className="h-[80px] object-contain" />
+                                                            <img src={getDirectImg(currentMinute.signature)} className="h-[80px] object-contain" />
                                                         </div>
                                                     )}
                                                 </td>
@@ -322,7 +337,8 @@ const MinutesDetail: React.FC<{ minute: Minute | null; onNavigate: (p: Page) => 
                                             <div className="grid grid-cols-2 gap-4">
                                                 {docsImages.map((img: string, i: number) => (
                                                     <div key={i} className="border-2 border-slate-200 p-2 break-inside-avoid shadow-sm flex items-center justify-center bg-slate-50 min-h-[200px]">
-                                                        <img src={img} className="max-w-full h-auto object-contain max-h-[350px] mix-blend-multiply" alt={`Lampiran ${i+1}`} />
+                                                        {/* MENGGUNAKAN KONVERTER getDirectImg UNTUK FOTO DOKUMENTASI */}
+                                                        <img src={getDirectImg(img)} className="max-w-full h-auto object-contain max-h-[350px] mix-blend-multiply" alt={`Lampiran ${i+1}`} />
                                                     </div>
                                                 ))}
                                             </div>
