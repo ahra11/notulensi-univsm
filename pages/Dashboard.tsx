@@ -39,16 +39,44 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     const updateDisplay = (minutes: Minute[], schedules: Schedule[]) => {
         const sortedMinutes = [...minutes].sort((a, b) => b.id.localeCompare(a.id));
         
-        // PENDETEKSI WAKTU: Filter hanya rapat yang belum lewat waktunya
+        // PENDETEKSI WAKTU YANG DIPERBAIKI (Tahan Banting)
         const now = new Date();
         const upcomingOnly = schedules.filter(sch => {
-            if (!sch.date || !sch.time) return true;
-            const schDate = new Date(`${sch.date}T${sch.time}`);
-            return schDate >= now; // Hanya ambil yang masih di masa depan
+            if (!sch.date) return false;
+            
+            try {
+                let schDate = new Date(sch.date); // Parsing tanggal
+                
+                if (sch.time) {
+                    // Bersihkan teks "WIB" atau huruf lain jika terbawa di kolom waktu
+                    const cleanTime = String(sch.time).replace(/[^0-9:]/g, ''); 
+                    const [hours, mins] = cleanTime.split(':');
+                    schDate.setHours(parseInt(hours) || 0, parseInt(mins) || 0, 0, 0);
+                } else {
+                    // Jika jam tidak diisi, anggap jadwal berlaku sampai jam 23:59 malam hari itu
+                    schDate.setHours(23, 59, 59, 999);
+                }
+                
+                return schDate.getTime() >= now.getTime();
+            } catch (e) {
+                return false;
+            }
         });
 
         // Urutkan jadwal terdekat dari hari ini
-        const sortedSchedules = [...upcomingOnly].sort((a, b) => new Date(`${a.date}T${a.time}`).getTime() - new Date(`${b.date}T${b.time}`).getTime());
+        const sortedSchedules = [...upcomingOnly].sort((a, b) => {
+            const dateA = new Date(a.date);
+            const dateB = new Date(b.date);
+            if(a.time) {
+                 const [hA, mA] = String(a.time).replace(/[^0-9:]/g, '').split(':');
+                 dateA.setHours(parseInt(hA)||0, parseInt(mA)||0);
+            }
+            if(b.time) {
+                 const [hB, mB] = String(b.time).replace(/[^0-9:]/g, '').split(':');
+                 dateB.setHours(parseInt(hB)||0, parseInt(mB)||0);
+            }
+            return dateA.getTime() - dateB.getTime();
+        });
 
         setStats({
             total: minutes.length,
