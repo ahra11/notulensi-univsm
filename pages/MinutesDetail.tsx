@@ -8,38 +8,70 @@ const MinutesDetail: React.FC<{ minute: Minute | null; onNavigate: (p: Page) => 
     const [isVerifying, setIsVerifying] = useState(false);
     const [showSignaturePad, setShowSignaturePad] = useState(false);
     const [isDrawing, setIsDrawing] = useState(false);
+    const [isFetchingImages, setIsFetchingImages] = useState(false);
     const canvasRef = useRef<HTMLCanvasElement>(null);
 
     const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{"name":"ABDUL HAMID, S.Kom., M.M., M.Kom", "role":"PIMPINAN"}');
 
     useEffect(() => {
-        if (minute) setCurrentMinute(minute);
+        if (minute) {
+            setCurrentMinute(minute);
+            
+            // JURUS RAHASIA: Mem-bypass Cache Ringan
+            // Memaksa menarik data foto utuh dari database karena cache sebelumnya membuangnya
+            if (!minute.documentation || minute.documentation.length === 0) {
+                setIsFetchingImages(true);
+                SpreadsheetService.fetchAllMinutes().then(allData => {
+                    const realData = allData.find((m: any) => m.id === minute.id);
+                    if (realData) {
+                        setCurrentMinute(realData);
+                    }
+                    setIsFetchingImages(false);
+                }).catch(() => setIsFetchingImages(false));
+            }
+        }
     }, [minute]);
 
     const renderSmartImage = (rawData: any) => {
         if (!rawData) return '';
         let str = String(rawData).trim().replace(/^["']|["']$/g, '');
-        if (str.startsWith('data:image')) return str.replace(/[\r\n\s]+/g, ''); 
+
+        if (str.startsWith('data:image')) {
+            return str.replace(/[\r\n\s]+/g, ''); 
+        }
         if (str.includes('drive.google.com')) {
             const idMatch = str.match(/[-\w]{25,}/);
             if (idMatch) return `https://drive.google.com/uc?export=view&id=${idMatch[0]}`;
         }
-        if (str.length >= 25 && !str.includes(' ') && !str.includes('http')) return `https://drive.google.com/uc?export=view&id=${str}`;
+        if (str.length >= 25 && !str.includes(' ') && !str.includes('http')) {
+            return `https://drive.google.com/uc?export=view&id=${str}`;
+        }
         return str;
     };
 
     const getDocumentationArray = () => {
         if (!currentMinute?.documentation) return [];
         let docData = currentMinute.documentation;
-        if (Array.isArray(docData)) return docData;
+        
+        if (Array.isArray(docData) && docData.length > 0) return docData;
+        
         let docStr = String(docData).trim();
+        if (!docStr) return [];
+
         try {
             const parsed = JSON.parse(docStr);
             return Array.isArray(parsed) ? parsed : [parsed];
         } catch (e) {
-            if (docStr.startsWith('data:image')) return [docStr];
-            if (docStr.includes(',') && !docStr.includes('base64')) return docStr.split(',').map(s => s.trim());
-            return [docStr];
+            // EKSTRAKSI PAKSA JIKA DATA BASE64 TERPOTONG OLEH SPREADSHEET
+            const base64Regex = /data:image\/[^;]+;base64,[a-zA-Z0-9+/=]+/g;
+            const matches = docStr.match(base64Regex);
+            if (matches && matches.length > 0) {
+                return matches; 
+            }
+            if (docStr.includes(',') && !docStr.includes('base64')) {
+                return docStr.split(',').map(s => s.replace(/^\[?["']|["']\]?$/g, '').trim());
+            }
+            return [docStr.replace(/^\[?["']|["']\]?$/g, '').trim()];
         }
     };
 
@@ -99,6 +131,12 @@ const MinutesDetail: React.FC<{ minute: Minute | null; onNavigate: (p: Page) => 
                     .no-print { display: none !important; }
                     .main-container { box-shadow: none !important; border: none !important; padding: 0 !important; width: 100% !important; max-width: 100% !important; }
                     .print-area { font-family: 'Times New Roman', serif !important; color: black !important; line-height: 1.5; font-size: 11pt; }
+                    
+                    /* KOP SURAT CETAK (DIPAKSA RAPAT) */
+                    .kop-surat-text { line-height: 1.1 !important; }
+                    .kop-surat-text > div { margin-bottom: 2px !important; margin-top: 0 !important; }
+                    .kop-univ-title { font-size: 21pt !important; margin: 2px 0 !important; line-height: 1 !important; }
+                    
                     .kop-line-heavy { border-bottom: 3pt solid black !important; width: 100% !important; margin-top: 4px !important; }
                     .kop-line-light { border-bottom: 1pt solid black !important; width: 100% !important; margin-top: 2px !important; margin-bottom: 20px !important; }
                     .break-page { page-break-before: always !important; }
@@ -108,9 +146,12 @@ const MinutesDetail: React.FC<{ minute: Minute | null; onNavigate: (p: Page) => 
             `}} />
 
             <div className="w-full max-w-4xl flex justify-between mb-6 no-print">
-                <button onClick={() => onNavigate('history')} className="font-bold flex items-center gap-2 text-[#252859] hover:underline">
-                    <span className="material-symbols-outlined">arrow_back</span> Kembali
-                </button>
+                <div className="flex items-center gap-4">
+                    <button onClick={() => onNavigate('history')} className="font-bold flex items-center gap-2 text-[#252859] hover:underline">
+                        <span className="material-symbols-outlined">arrow_back</span> Kembali
+                    </button>
+                    {isFetchingImages && <span className="text-xs text-amber-500 font-bold animate-pulse">Menarik foto arsip...</span>}
+                </div>
                 <div className="flex gap-2">
                     {currentMinute.status !== 'SIGNED' && (
                         <button onClick={() => setShowSignaturePad(true)} className="bg-green-600 text-white px-6 py-2 rounded-xl font-bold shadow-lg">Sahkan</button>
@@ -122,14 +163,15 @@ const MinutesDetail: React.FC<{ minute: Minute | null; onNavigate: (p: Page) => 
             <div className="main-container w-full max-w-4xl bg-white shadow-xl border border-slate-200 p-8 md:p-14 mb-20">
                 <div className="print-area">
                     
+                    {/* KOP SURAT (TIDAK MIRING DAN SPASI PADAT) */}
                     <div className="flex items-center">
                         <div className="w-[110px] mr-5 flex-shrink-0"><img src={logoUSM} className="w-full h-auto object-contain" alt="Logo USM" /></div>
-                        <div className="flex-1 text-center pr-6" style={{ lineHeight: '1.15' }}>
-                            <div style={{ fontSize: '11.5pt', fontWeight: 'normal' }}>YAYASAN SAPTA BAKTI PENDIDIKAN</div>
-                            <div style={{ fontSize: '20pt', fontWeight: '900', margin: '2px 0', letterSpacing: '0.5px' }}>UNIVERSITAS SAPTA MANDIRI</div>
-                            <div style={{ fontSize: '12pt', fontWeight: 'bold', marginBottom: '5px' }}>SK Pendirian No. 661 / E/O/2024</div>
-                            <div style={{ fontSize: '9pt' }}>Kampus I : JL. A. Yani RT.07 Kel. Batu Piring Kec. Paringin Selatan Kab. Balangan Kalsel</div>
-                            <div style={{ fontSize: '9pt' }}>Kampus II : JL. A. Yani KM. 5 Kel. Batu Piring Kec. Paringin Selatan Kab. Balangan Kalsel</div>
+                        <div className="flex-1 text-center pr-6 kop-surat-text" style={{ lineHeight: '1.1' }}>
+                            <div style={{ fontSize: '11.5pt', fontWeight: 'normal', marginBottom: '2px' }}>YAYASAN SAPTA BAKTI PENDIDIKAN</div>
+                            <div className="kop-univ-title" style={{ fontSize: '21pt', fontWeight: '900', margin: '0', letterSpacing: '0.5px' }}>UNIVERSITAS SAPTA MANDIRI</div>
+                            <div style={{ fontSize: '12pt', fontWeight: 'bold', marginBottom: '4px', marginTop: '2px' }}>SK Pendirian No. 661 / E/O/2024</div>
+                            <div style={{ fontSize: '9pt', fontWeight: '500' }}>Kampus I : JL. A. Yani RT.07 Kel. Batu Piring Kec. Paringin Selatan Kab. Balangan Kalsel</div>
+                            <div style={{ fontSize: '9pt', fontWeight: '500' }}>Kampus II : JL. A. Yani KM. 5 Kel. Batu Piring Kec. Paringin Selatan Kab. Balangan Kalsel</div>
                             <div style={{ fontSize: '8pt', fontWeight: 'bold', marginTop: '3px' }}>Telp/Fax (0526) 209 5962 CP: 0877 7687 7462 Kode Pos : 71618</div>
                             <div style={{ fontSize: '8pt', fontWeight: 'bold' }}>Website : <span style={{color: 'blue', textDecoration: 'underline'}}>www.univsm.ac.id</span> Email : <span style={{color: 'blue', textDecoration: 'underline'}}>info@univsm.ac.id</span></div>
                         </div>
@@ -152,31 +194,40 @@ const MinutesDetail: React.FC<{ minute: Minute | null; onNavigate: (p: Page) => 
                         <div className="whitespace-pre-wrap text-justify leading-relaxed text-[11.5pt] min-h-[200px]">{currentMinute.content}</div>
                     </div>
 
+                    {/* STRUKTUR TANDA TANGAN 3 BARIS (DIJAMIN SEJAJAR 100%) */}
                     <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', border: 'none' }}>
                         <tbody>
+                            {/* Baris 1: Jabatan */}
                             <tr>
-                                <td style={{ width: '50%', textAlign: 'center', verticalAlign: 'top', paddingBottom: '90px' }}>
-                                    <div style={{ fontSize: '11.5pt' }}>Notulis,</div>
+                                <td style={{ width: '50%', textAlign: 'center', verticalAlign: 'top', border: 'none' }}>
+                                    <div style={{ fontSize: '11.5pt' }}><br/>Notulis,</div>
                                 </td>
-                                <td style={{ width: '50%', textAlign: 'center', verticalAlign: 'top' }}>
-                                    <div style={{ fontSize: '11.5pt', marginBottom: '4px' }}>
+                                <td style={{ width: '50%', textAlign: 'center', verticalAlign: 'top', border: 'none' }}>
+                                    <div style={{ fontSize: '11.5pt' }}>
                                         Paringin, {formatResmiTanggal(currentMinute.date)}<br/>
                                         Mengesahkan, Rektor
                                     </div>
-                                    <div style={{ height: '100px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '4px 0' }}>
-                                        {currentMinute.signature && (
-                                            <img src={renderSmartImage(currentMinute.signature)} style={{ maxHeight: '90px', width: 'auto', objectFit: 'contain' }} alt="TTD Rektor" />
-                                        )}
-                                    </div>
                                 </td>
                             </tr>
+                            {/* Baris 2: Ruang Spasi / Gambar TTD (Tinggi Dikunci) */}
                             <tr>
-                                <td style={{ textAlign: 'center', verticalAlign: 'top' }}>
+                                <td style={{ height: '100px', border: 'none' }}></td>
+                                <td style={{ height: '100px', textAlign: 'center', verticalAlign: 'middle', border: 'none' }}>
+                                    {currentMinute.signature && (
+                                        <div style={{ display: 'inline-block' }}>
+                                            <img src={renderSmartImage(currentMinute.signature)} style={{ maxHeight: '90px', width: 'auto', display: 'block', margin: '0 auto' }} alt="TTD Rektor" />
+                                        </div>
+                                    )}
+                                </td>
+                            </tr>
+                            {/* Baris 3: Nama dan NIK (Akan selalu sejajar) */}
+                            <tr>
+                                <td style={{ textAlign: 'center', verticalAlign: 'top', border: 'none' }}>
                                     <div style={{ fontWeight: 'bold', fontSize: '11.5pt', textTransform: 'uppercase' }}>
                                         ({currentMinute.submittedBy || '_________________________'})
                                     </div>
                                 </td>
-                                <td style={{ textAlign: 'center', verticalAlign: 'top' }}>
+                                <td style={{ textAlign: 'center', verticalAlign: 'top', border: 'none' }}>
                                     <div style={{ fontWeight: 'bold', fontSize: '11.5pt', textTransform: 'uppercase', textDecoration: 'underline' }}>
                                         {currentMinute.signedBy || 'ABDUL HAMID, S.Kom., M.M., M.Kom'}
                                     </div>
@@ -188,7 +239,7 @@ const MinutesDetail: React.FC<{ minute: Minute | null; onNavigate: (p: Page) => 
                         </tbody>
                     </table>
 
-                    {/* LAMPIRAN DOKUMENTASI DENGAN PENDETEKSI KERUSAKAN */}
+                    {/* LAMPIRAN DOKUMENTASI */}
                     {docImages.length > 0 && (
                         <div className="break-page mt-24 pt-10 border-t border-dashed border-slate-300">
                             <h3 className="text-center font-bold underline mb-10 uppercase text-[13pt]">LAMPIRAN DOKUMENTASI</h3>
@@ -201,18 +252,15 @@ const MinutesDetail: React.FC<{ minute: Minute | null; onNavigate: (p: Page) => 
                                             alt={`Dokumentasi ${i+1}`}
                                             onError={(e) => {
                                                 const target = e.target as HTMLImageElement;
-                                                target.style.display = 'none'; // Sembunyikan img yang rusak
-                                                // Tampilkan pesan error
+                                                target.style.display = 'none';
                                                 if (target.nextElementSibling) {
                                                     (target.nextElementSibling as HTMLElement).style.display = 'flex';
                                                 }
                                             }}
                                         />
-                                        {/* PESAN ERROR MUNCUL JIKA GAMBAR TERPOTONG DI DATABASE */}
                                         <div style={{ display: 'none', flexDirection: 'column', alignItems: 'center', color: '#ef4444', textAlign: 'center', padding: '20px' }}>
                                             <span className="material-symbols-outlined text-4xl mb-2">broken_image</span>
                                             <p className="font-bold text-sm">Gagal Memuat Gambar</p>
-                                            <p className="text-xs text-slate-500 mt-2">Data gambar terpotong oleh sistem database (melebihi batas 50.000 karakter). File asli tidak dapat dipulihkan.</p>
                                         </div>
                                     </div>
                                 ))}
