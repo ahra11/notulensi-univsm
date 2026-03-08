@@ -17,11 +17,32 @@ const History: React.FC<HistoryProps> = ({ onNavigate }) => {
         fetchData();
     }, []);
 
+    // FORMATTER TANGGAL RAPI
+    const formatDisplayDate = (rawDate: string) => {
+        if (!rawDate) return '-';
+        try {
+            const d = new Date(rawDate);
+            if (isNaN(d.getTime())) return rawDate;
+            return d.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+        } catch (e) { return rawDate; }
+    };
+
     const fetchData = async () => {
-        setIsLoading(true);
+        // 1. STRATEGI CACHE-FIRST (Tampil Langsung dalam 0.1 Detik)
+        const cached = localStorage.getItem('usm_minutes_cache');
+        if (cached) {
+            try {
+                const parsed = JSON.parse(cached);
+                setMinutes([...parsed].sort((a, b) => b.id.localeCompare(a.id)));
+                setIsLoading(false); // Matikan loading jika data memori sudah tampil
+            } catch(e) {}
+        } else {
+            setIsLoading(true);
+        }
+
+        // 2. SINKRONISASI DIAM-DIAM DARI SERVER GOOGLE
         try {
             const data = await SpreadsheetService.fetchAllMinutes();
-            // Urutkan dari yang terbaru
             setMinutes([...data].sort((a, b) => b.id.localeCompare(a.id)));
         } catch (error) {
             console.error("Gagal memuat arsip", error);
@@ -58,7 +79,7 @@ const History: React.FC<HistoryProps> = ({ onNavigate }) => {
                     <p className="text-sm text-slate-500 font-medium mt-1">Kelola dan lihat riwayat dokumen rapat</p>
                 </div>
                 <div className="flex gap-2">
-                    <button onClick={fetchData} className="p-3 bg-slate-100 text-slate-500 rounded-2xl hover:bg-slate-200 transition-all">
+                    <button onClick={fetchData} className="p-3 bg-slate-100 text-slate-500 rounded-2xl hover:bg-slate-200 transition-all" title="Sinkronkan Data">
                         <span className={`material-symbols-outlined ${isLoading ? 'animate-spin' : ''}`}>sync</span>
                     </button>
                     <div className="relative flex-1 md:w-64">
@@ -74,7 +95,7 @@ const History: React.FC<HistoryProps> = ({ onNavigate }) => {
 
             <div className="bg-white rounded-[2.5rem] border border-slate-100 overflow-hidden shadow-sm relative">
                 {isLoading && (
-                    <div className="absolute inset-0 bg-white/50 backdrop-blur-sm z-10 flex items-center justify-center">
+                    <div className="absolute inset-0 bg-white/20 backdrop-blur-[1px] z-10 flex items-center justify-center">
                         <div className="size-8 border-4 border-[#252859]/20 border-t-[#252859] rounded-full animate-spin"></div>
                     </div>
                 )}
@@ -99,7 +120,9 @@ const History: React.FC<HistoryProps> = ({ onNavigate }) => {
                                             {minute.location || '-'}
                                         </p>
                                     </td>
-                                    <td className="px-6 py-4 text-xs font-bold text-slate-500">{minute.date}</td>
+                                    <td className="px-6 py-4 text-xs font-bold text-slate-500">
+                                        {formatDisplayDate(minute.date)}
+                                    </td>
                                     <td className="px-6 py-4 text-center">
                                         <span className={`px-3 py-1 text-[9px] font-black rounded-full uppercase tracking-widest ${minute.status === 'SIGNED' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
                                             {minute.status}
