@@ -14,14 +14,63 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
 
     const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
 
+    // 1. MESIN PEMBACA WAKTU (Sama persis dengan halaman Jadwal)
+    const parseScheduleDateTime = (dateStr: string, timeStr: string) => {
+        if (!dateStr) return new Date(0);
+        try {
+            const dateObj = new Date(dateStr);
+            if (timeStr) {
+                if (timeStr.includes('T')) {
+                    const t = new Date(timeStr);
+                    dateObj.setHours(t.getHours(), t.getMinutes(), 0, 0);
+                } else {
+                    const cleanTime = String(timeStr).replace(/[^0-9:]/g, ''); 
+                    const [hours, mins] = cleanTime.split(':');
+                    dateObj.setHours(parseInt(hours) || 0, parseInt(mins) || 0, 0, 0);
+                }
+            } else {
+                dateObj.setHours(23, 59, 59, 999);
+            }
+            return dateObj;
+        } catch (e) {
+            return new Date(0);
+        }
+    };
+
+    // 2. PENERJEMAH TANGGAL & WAKTU
+    const formatDisplayDate = (rawDate: string) => {
+        if (!rawDate) return '-';
+        try {
+            const d = new Date(rawDate);
+            if (isNaN(d.getTime())) return rawDate;
+            return d.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+        } catch (e) { return rawDate; }
+    };
+
+    const formatDisplayTime = (rawTime: string) => {
+        if (!rawTime) return '-';
+        try {
+            if (rawTime.includes('T')) {
+                const d = new Date(rawTime);
+                if (isNaN(d.getTime())) return rawTime;
+                return d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB';
+            }
+            return String(rawTime).replace(/[^0-9:]/g, '') + ' WIB';
+        } catch (e) { return rawTime; }
+    };
+
     useEffect(() => {
         loadDashboardData();
     }, []);
 
     const loadDashboardData = async () => {
+        // Optimistic UI: Muat seketika dari Cache
         const cachedMinutes = JSON.parse(localStorage.getItem('usm_minutes_cache') || '[]');
         const cachedSchedules = JSON.parse(localStorage.getItem('usm_schedules') || '[]');
-        updateDisplay(cachedMinutes, cachedSchedules);
+        if (cachedMinutes.length > 0 || cachedSchedules.length > 0) {
+            updateDisplay(cachedMinutes, cachedSchedules);
+            setIsLoading(false);
+        }
 
         try {
             const [freshMinutes, freshSchedules] = await Promise.all([
@@ -39,43 +88,15 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     const updateDisplay = (minutes: Minute[], schedules: Schedule[]) => {
         const sortedMinutes = [...minutes].sort((a, b) => b.id.localeCompare(a.id));
         
-        // PENDETEKSI WAKTU YANG DIPERBAIKI (Tahan Banting)
+        // PENDETEKSI WAKTU MENDATANG (Sinkron dengan halaman jadwal)
         const now = new Date();
         const upcomingOnly = schedules.filter(sch => {
-            if (!sch.date) return false;
-            
-            try {
-                let schDate = new Date(sch.date); // Parsing tanggal
-                
-                if (sch.time) {
-                    // Bersihkan teks "WIB" atau huruf lain jika terbawa di kolom waktu
-                    const cleanTime = String(sch.time).replace(/[^0-9:]/g, ''); 
-                    const [hours, mins] = cleanTime.split(':');
-                    schDate.setHours(parseInt(hours) || 0, parseInt(mins) || 0, 0, 0);
-                } else {
-                    // Jika jam tidak diisi, anggap jadwal berlaku sampai jam 23:59 malam hari itu
-                    schDate.setHours(23, 59, 59, 999);
-                }
-                
-                return schDate.getTime() >= now.getTime();
-            } catch (e) {
-                return false;
-            }
+            const schDateTime = parseScheduleDateTime(sch.date, sch.time);
+            return schDateTime.getTime() >= now.getTime();
         });
 
-        // Urutkan jadwal terdekat dari hari ini
         const sortedSchedules = [...upcomingOnly].sort((a, b) => {
-            const dateA = new Date(a.date);
-            const dateB = new Date(b.date);
-            if(a.time) {
-                 const [hA, mA] = String(a.time).replace(/[^0-9:]/g, '').split(':');
-                 dateA.setHours(parseInt(hA)||0, parseInt(mA)||0);
-            }
-            if(b.time) {
-                 const [hB, mB] = String(b.time).replace(/[^0-9:]/g, '').split(':');
-                 dateB.setHours(parseInt(hB)||0, parseInt(mB)||0);
-            }
-            return dateA.getTime() - dateB.getTime();
+            return parseScheduleDateTime(a.date, a.time).getTime() - parseScheduleDateTime(b.date, b.time).getTime();
         });
 
         setStats({
@@ -139,22 +160,22 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
                     <div className="flex items-center justify-between mb-6">
                         <h2 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
                             Agenda Mendatang
-                            <span className="bg-primary/10 text-primary text-[10px] px-2 py-1 rounded-lg">{upcomingSchedules.length}</span>
+                            <span className="bg-[#252859]/10 text-[#252859] text-[10px] px-2 py-1 rounded-lg font-bold">{upcomingSchedules.length}</span>
                         </h2>
                         <button onClick={() => onNavigate('schedules')} className="text-xs font-bold text-[#252859] hover:underline uppercase tracking-widest">Lihat Semua</button>
                     </div>
                     <div className="space-y-4">
                         {upcomingSchedules.length > 0 ? upcomingSchedules.map(sch => (
-                            <div key={sch.id} className="bg-white p-5 rounded-3xl border border-slate-100 flex items-center gap-4 hover:shadow-lg hover:border-primary/10 transition-all group">
-                                <div className="size-12 bg-indigo-50 text-[#252859] group-hover:bg-primary group-hover:text-white rounded-2xl flex items-center justify-center flex-shrink-0 transition-colors">
+                            <div key={sch.id} className="bg-white p-5 rounded-3xl border border-slate-100 flex items-center gap-4 hover:shadow-lg hover:border-[#252859]/10 transition-all group">
+                                <div className="size-12 bg-indigo-50 text-[#252859] group-hover:bg-[#252859] group-hover:text-white rounded-2xl flex items-center justify-center flex-shrink-0 transition-colors">
                                     <span className="material-symbols-outlined">calendar_month</span>
                                 </div>
                                 <div className="flex-1 overflow-hidden">
-                                    <h4 className="font-bold text-slate-900 truncate group-hover:text-primary transition-colors">{sch.title}</h4>
+                                    <h4 className="font-bold text-slate-900 truncate group-hover:text-[#252859] transition-colors">{sch.title}</h4>
                                     <div className="flex items-center gap-2 mb-1">
-                                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">{sch.date}</p>
+                                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">{formatDisplayDate(sch.date)}</p>
                                         <span className="size-1 bg-slate-200 rounded-full"></span>
-                                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">{sch.time} WIB</p>
+                                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">{formatDisplayTime(sch.time)}</p>
                                     </div>
                                     <div className="text-xs mt-1">
                                         {renderLocation(sch.location)}
@@ -177,14 +198,14 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
                     </div>
                     <div className="space-y-4">
                         {recentMeetings.length > 0 ? recentMeetings.map(meeting => (
-                            <div key={meeting.id} onClick={() => onNavigate('detail', meeting)} className="bg-white p-5 rounded-3xl border border-slate-100 flex items-center justify-between hover:shadow-lg hover:border-primary/10 transition-all cursor-pointer group">
+                            <div key={meeting.id} onClick={() => onNavigate('detail', meeting)} className="bg-white p-5 rounded-3xl border border-slate-100 flex items-center justify-between hover:shadow-lg hover:border-[#252859]/10 transition-all cursor-pointer group">
                                 <div className="flex items-center gap-4 overflow-hidden">
                                     <div className="size-12 bg-slate-50 text-slate-400 group-hover:bg-[#252859] group-hover:text-white rounded-2xl flex items-center justify-center flex-shrink-0 transition-colors">
                                         <span className="material-symbols-outlined">description</span>
                                     </div>
                                     <div className="overflow-hidden">
-                                        <h4 className="font-bold text-slate-900 truncate group-hover:text-primary transition-colors">{meeting.title}</h4>
-                                        <p className="text-[10px] text-slate-400 font-bold uppercase">{meeting.date}</p>
+                                        <h4 className="font-bold text-slate-900 truncate group-hover:text-[#252859] transition-colors">{meeting.title}</h4>
+                                        <p className="text-[10px] text-slate-400 font-bold uppercase">{formatDisplayDate(meeting.date)}</p>
                                     </div>
                                 </div>
                                 <span className="material-symbols-outlined text-slate-300 group-hover:text-[#252859] transition-colors group-hover:translate-x-1">arrow_forward_ios</span>
