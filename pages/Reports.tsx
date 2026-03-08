@@ -14,8 +14,21 @@ const Reports: React.FC<ReportsProps> = ({ onNavigate }) => {
         loadData();
     }, []);
 
+    // LOGIKA LOADING SUPER CEPAT (Cache-First Strategy)
     const loadData = async () => {
-        setIsLoading(true);
+        // 1. Tampilkan dari memori lokal seketika (Instan)
+        const cached = localStorage.getItem('usm_minutes_cache');
+        if (cached) {
+            try {
+                const parsed = JSON.parse(cached);
+                setMinutes(parsed);
+                setIsLoading(false); // Matikan putaran loading agar halaman langsung tampil
+            } catch(e) {}
+        } else {
+            setIsLoading(true);
+        }
+
+        // 2. Tarik data terbaru dari server Google secara diam-diam (Background Fetch)
         try {
             const data = await SpreadsheetService.fetchAll();
             setMinutes(data);
@@ -26,7 +39,7 @@ const Reports: React.FC<ReportsProps> = ({ onNavigate }) => {
         }
     };
 
-    // 1. Hitung Statistik Utama (Perbaikan Status)
+    // 1. Hitung Statistik Utama
     const stats = useMemo(() => {
         const total = minutes.length;
         const draft = minutes.filter(m => m.status === 'DRAFT').length;
@@ -65,7 +78,7 @@ const Reports: React.FC<ReportsProps> = ({ onNavigate }) => {
         }));
     }, [minutes]);
 
-    // 3. Hitung Kontributor Teraktif (Perbaikan Status)
+    // 3. Hitung Kontributor Teraktif
     const topContributors = useMemo(() => {
         const groups: Record<string, { name: string, total: number, signed: number }> = {};
         
@@ -94,10 +107,10 @@ const Reports: React.FC<ReportsProps> = ({ onNavigate }) => {
                     </div>
                 </div>
                 <div className="flex gap-2">
-                    <button onClick={loadData} className="p-2.5 text-slate-400 hover:bg-slate-50 rounded-xl transition-colors">
+                    <button onClick={loadData} className="p-2.5 text-slate-400 hover:bg-slate-50 rounded-xl transition-colors" title="Sinkronkan Data">
                         <span className={`material-symbols-outlined ${isLoading ? 'animate-spin' : ''}`}>sync</span>
                     </button>
-                    <button onClick={() => window.print()} className="px-5 py-2.5 bg-[#252859] text-white rounded-xl font-bold text-xs uppercase tracking-widest flex items-center gap-2 shadow-lg">
+                    <button onClick={() => window.print()} className="px-5 py-2.5 bg-[#252859] text-white rounded-xl font-bold text-xs uppercase tracking-widest flex items-center gap-2 shadow-lg hover:bg-black transition-all">
                         <span className="material-symbols-outlined text-lg">download</span> Unduh PDF
                     </button>
                 </div>
@@ -113,7 +126,7 @@ const Reports: React.FC<ReportsProps> = ({ onNavigate }) => {
                             </div>
                             <div>
                                 <p className="text-[9px] md:text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-1">{s.label}</p>
-                                <p className="text-2xl md:text-3xl font-black text-slate-900">{isLoading ? '...' : s.value}</p>
+                                <p className="text-2xl md:text-3xl font-black text-slate-900">{s.value}</p>
                             </div>
                         </div>
                     ))}
@@ -133,7 +146,7 @@ const Reports: React.FC<ReportsProps> = ({ onNavigate }) => {
                                 <div className="text-[10px] font-bold text-slate-400 uppercase opacity-0 group-hover:opacity-100 transition-opacity">{d.count}</div>
                                 <div 
                                     className="w-full max-w-[40px] bg-[#252859] rounded-t-xl transition-all duration-700 shadow-lg relative" 
-                                    style={{ height: isLoading ? '0%' : d.percent }}
+                                    style={{ height: d.percent }}
                                 >
                                     <div className="absolute inset-0 bg-white/10 rounded-t-xl opacity-0 group-hover:opacity-100"></div>
                                 </div>
@@ -161,13 +174,7 @@ const Reports: React.FC<ReportsProps> = ({ onNavigate }) => {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100">
-                                    {isLoading ? (
-                                        [1, 2, 3].map(i => (
-                                            <tr key={i} className="animate-pulse">
-                                                <td colSpan={3} className="px-6 py-4 h-12 bg-slate-50/50"></td>
-                                            </tr>
-                                        ))
-                                    ) : topContributors.length > 0 ? (
+                                    {topContributors.length > 0 ? (
                                         topContributors.map((row, i) => (
                                             <tr key={i} className="hover:bg-slate-50 transition-colors">
                                                 <td className="px-6 py-4 font-bold text-slate-700">
@@ -183,7 +190,7 @@ const Reports: React.FC<ReportsProps> = ({ onNavigate }) => {
                                                     <div className="flex items-center gap-3">
                                                         <div className="flex-1 h-1.5 bg-slate-100 rounded-full max-w-[100px] overflow-hidden">
                                                             <div 
-                                                                className="h-full bg-green-500 rounded-full" 
+                                                                className="h-full bg-green-500 rounded-full transition-all duration-1000" 
                                                                 style={{ width: `${(row.signed / row.total) * 100}%` }}
                                                             ></div>
                                                         </div>
@@ -197,7 +204,7 @@ const Reports: React.FC<ReportsProps> = ({ onNavigate }) => {
                                     ) : (
                                         <tr>
                                             <td colSpan={3} className="px-6 py-10 text-center text-slate-400 italic text-xs">
-                                                Belum ada data kontribusi yang tersedia.
+                                                {isLoading ? 'Sedang memuat data...' : 'Belum ada data kontribusi yang tersedia.'}
                                             </td>
                                         </tr>
                                     )}
