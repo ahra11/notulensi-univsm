@@ -16,50 +16,29 @@ const MinutesDetail: React.FC<{ minute: Minute | null; onNavigate: (p: Page) => 
         if (minute) setCurrentMinute(minute);
     }, [minute]);
 
-    // ==========================================
-    // 1. MESIN PINTAR PEMBERSIH GAMBAR
-    // ==========================================
     const renderSmartImage = (rawData: any) => {
         if (!rawData) return '';
-        let str = String(rawData).trim();
-        str = str.replace(/^["']|["']$/g, '');
-
-        // Bersihkan spasi/enter tersembunyi pada Base64
-        if (str.startsWith('data:image')) {
-            return str.replace(/[\r\n\s]+/g, ''); 
-        }
+        let str = String(rawData).trim().replace(/^["']|["']$/g, '');
+        if (str.startsWith('data:image')) return str.replace(/[\r\n\s]+/g, ''); 
         if (str.includes('drive.google.com')) {
             const idMatch = str.match(/[-\w]{25,}/);
             if (idMatch) return `https://drive.google.com/uc?export=view&id=${idMatch[0]}`;
         }
-        if (str.length >= 25 && !str.includes(' ') && !str.includes('http')) {
-            return `https://drive.google.com/uc?export=view&id=${str}`;
-        }
+        if (str.length >= 25 && !str.includes(' ') && !str.includes('http')) return `https://drive.google.com/uc?export=view&id=${str}`;
         return str;
     };
 
-    // ==========================================
-    // 2. PENYELAMAT DATA BASE64 (ANTI-TERPOTONG)
-    // ==========================================
     const getDocumentationArray = () => {
         if (!currentMinute?.documentation) return [];
         let docData = currentMinute.documentation;
-        
         if (Array.isArray(docData)) return docData;
-        
         let docStr = String(docData).trim();
         try {
             const parsed = JSON.parse(docStr);
             return Array.isArray(parsed) ? parsed : [parsed];
         } catch (e) {
-            // PERBAIKAN FATAL: Cegah Base64 terpotong oleh fungsi split koma!
-            if (docStr.startsWith('data:image')) {
-                return [docStr];
-            }
-            // Hanya split koma jika bukan Base64
-            if (docStr.includes(',') && !docStr.includes('base64')) {
-                return docStr.split(',').map(s => s.trim());
-            }
+            if (docStr.startsWith('data:image')) return [docStr];
+            if (docStr.includes(',') && !docStr.includes('base64')) return docStr.split(',').map(s => s.trim());
             return [docStr];
         }
     };
@@ -74,7 +53,6 @@ const MinutesDetail: React.FC<{ minute: Minute | null; onNavigate: (p: Page) => 
         } catch (e) { return raw; }
     };
 
-    // LOGIKA CANVAS TANDA TANGAN
     const startDrawing = (e: any) => {
         const canvas = canvasRef.current;
         if (!canvas) return;
@@ -111,11 +89,10 @@ const MinutesDetail: React.FC<{ minute: Minute | null; onNavigate: (p: Page) => 
         } catch (e) { alert("Gagal mengesahkan dokumen."); } finally { setIsVerifying(false); }
     };
 
-    if (!currentMinute) return <div className="p-20 text-center font-bold text-slate-400 tracking-widest">MEMUAT DOKUMEN...</div>;
+    if (!currentMinute) return <div className="p-20 text-center font-bold text-slate-400">MEMUAT DOKUMEN...</div>;
 
     return (
         <div className="p-4 md:p-10 bg-slate-50 min-h-screen flex flex-col items-center">
-            {/* CSS KHUSUS CETAK DAN LAYOUT */}
             <style dangerouslySetInnerHTML={{ __html: `
                 @media print {
                     @page { size: A4 portrait; margin: 15mm; }
@@ -130,7 +107,6 @@ const MinutesDetail: React.FC<{ minute: Minute | null; onNavigate: (p: Page) => 
                 .kop-line-light { border-bottom: 1px solid black; width: 100%; margin-top: 2px; margin-bottom: 20px; }
             `}} />
 
-            {/* TOMBOL NAVIGASI */}
             <div className="w-full max-w-4xl flex justify-between mb-6 no-print">
                 <button onClick={() => onNavigate('history')} className="font-bold flex items-center gap-2 text-[#252859] hover:underline">
                     <span className="material-symbols-outlined">arrow_back</span> Kembali
@@ -143,15 +119,11 @@ const MinutesDetail: React.FC<{ minute: Minute | null; onNavigate: (p: Page) => 
                 </div>
             </div>
 
-            {/* KERTAS KERJA UTAMA */}
             <div className="main-container w-full max-w-4xl bg-white shadow-xl border border-slate-200 p-8 md:p-14 mb-20">
                 <div className="print-area">
                     
-                    {/* 3. KOP SURAT PADAT, RAPI, DAN TIDAK MIRING */}
                     <div className="flex items-center">
-                        <div className="w-[110px] mr-5 flex-shrink-0">
-                            <img src={logoUSM} className="w-full h-auto object-contain" alt="Logo USM" />
-                        </div>
+                        <div className="w-[110px] mr-5 flex-shrink-0"><img src={logoUSM} className="w-full h-auto object-contain" alt="Logo USM" /></div>
                         <div className="flex-1 text-center pr-6" style={{ lineHeight: '1.15' }}>
                             <div style={{ fontSize: '11.5pt', fontWeight: 'normal' }}>YAYASAN SAPTA BAKTI PENDIDIKAN</div>
                             <div style={{ fontSize: '20pt', fontWeight: '900', margin: '2px 0', letterSpacing: '0.5px' }}>UNIVERSITAS SAPTA MANDIRI</div>
@@ -162,32 +134,24 @@ const MinutesDetail: React.FC<{ minute: Minute | null; onNavigate: (p: Page) => 
                             <div style={{ fontSize: '8pt', fontWeight: 'bold' }}>Website : <span style={{color: 'blue', textDecoration: 'underline'}}>www.univsm.ac.id</span> Email : <span style={{color: 'blue', textDecoration: 'underline'}}>info@univsm.ac.id</span></div>
                         </div>
                     </div>
+                    <div className="kop-line-heavy"></div><div className="kop-line-light"></div>
 
-                    <div className="kop-line-heavy"></div>
-                    <div className="kop-line-light"></div>
-
-                    {/* JUDUL */}
                     <div className="text-center mb-8">
                         <h2 className="text-[14pt] font-bold underline uppercase tracking-widest">NOTULENSI RAPAT</h2>
                         <p className="text-[11.5pt] mt-1">Nomor: {currentMinute.id} /NOT/REK/2026</p>
                     </div>
 
-                    {/* DETAIL RAPAT */}
                     <div className="space-y-2 mb-8 text-[11.5pt]">
                         <div className="flex"><span className="w-40 flex-shrink-0">Kegiatan</span><span className="mr-3">:</span><span className="font-bold uppercase flex-1">{currentMinute.title}</span></div>
                         <div className="flex"><span className="w-40 flex-shrink-0">Hari / Tanggal</span><span className="mr-3">:</span><span className="flex-1">{formatResmiTanggal(currentMinute.date)}</span></div>
                         <div className="flex"><span className="w-40 flex-shrink-0">Tempat</span><span className="mr-3">:</span><span className="flex-1">{currentMinute.location}</span></div>
                     </div>
 
-                    {/* PEMBAHASAN */}
                     <div className="mb-10">
                         <p className="font-bold underline mb-3 uppercase text-[11.5pt]">Hasil Pembahasan:</p>
-                        <div className="whitespace-pre-wrap text-justify leading-relaxed text-[11.5pt] min-h-[200px]">
-                            {currentMinute.content}
-                        </div>
+                        <div className="whitespace-pre-wrap text-justify leading-relaxed text-[11.5pt] min-h-[200px]">{currentMinute.content}</div>
                     </div>
 
-                    {/* 4. TANDA TANGAN SEJAJAR SEMPURNA */}
                     <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', border: 'none' }}>
                         <tbody>
                             <tr>
@@ -224,22 +188,32 @@ const MinutesDetail: React.FC<{ minute: Minute | null; onNavigate: (p: Page) => 
                         </tbody>
                     </table>
 
-                    {/* LAMPIRAN DOKUMENTASI */}
+                    {/* LAMPIRAN DOKUMENTASI DENGAN PENDETEKSI KERUSAKAN */}
                     {docImages.length > 0 && (
                         <div className="break-page mt-24 pt-10 border-t border-dashed border-slate-300">
                             <h3 className="text-center font-bold underline mb-10 uppercase text-[13pt]">LAMPIRAN DOKUMENTASI</h3>
                             <div className="grid grid-cols-2 gap-6">
                                 {docImages.map((img: any, i: number) => (
-                                    <div key={i} className="border-2 border-slate-100 p-2 bg-slate-50 flex items-center justify-center h-[350px] shadow-sm rounded-lg overflow-hidden">
+                                    <div key={i} className="border-2 border-slate-100 p-2 bg-slate-50 flex flex-col items-center justify-center h-[350px] shadow-sm rounded-lg overflow-hidden relative">
                                         <img 
                                             src={renderSmartImage(img)} 
                                             className="max-h-full max-w-full object-contain" 
                                             alt={`Dokumentasi ${i+1}`}
                                             onError={(e) => {
-                                                console.error("Gagal memuat gambar:", img);
-                                                (e.target as HTMLImageElement).style.display = 'none';
+                                                const target = e.target as HTMLImageElement;
+                                                target.style.display = 'none'; // Sembunyikan img yang rusak
+                                                // Tampilkan pesan error
+                                                if (target.nextElementSibling) {
+                                                    (target.nextElementSibling as HTMLElement).style.display = 'flex';
+                                                }
                                             }}
                                         />
+                                        {/* PESAN ERROR MUNCUL JIKA GAMBAR TERPOTONG DI DATABASE */}
+                                        <div style={{ display: 'none', flexDirection: 'column', alignItems: 'center', color: '#ef4444', textAlign: 'center', padding: '20px' }}>
+                                            <span className="material-symbols-outlined text-4xl mb-2">broken_image</span>
+                                            <p className="font-bold text-sm">Gagal Memuat Gambar</p>
+                                            <p className="text-xs text-slate-500 mt-2">Data gambar terpotong oleh sistem database (melebihi batas 50.000 karakter). File asli tidak dapat dipulihkan.</p>
+                                        </div>
                                     </div>
                                 ))}
                             </div>
