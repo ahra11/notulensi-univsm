@@ -6,6 +6,7 @@ const MinutesForm: React.FC<{ onNavigate: (page: Page, data?: any) => void; init
     const [isLoading, setIsLoading] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
     const [isListening, setIsListening] = useState(false);
+    const [isSpeechSupported, setIsSpeechSupported] = useState(false); // STATE BARU UNTUK MUNCULKAN TOMBOL
     
     // Referensi untuk mesin pendeteksi suara
     const recognitionRef = useRef<any>(null);
@@ -41,8 +42,8 @@ const MinutesForm: React.FC<{ onNavigate: (page: Page, data?: any) => void; init
         if (SpeechRecognition) {
             const recognition = new SpeechRecognition();
             recognition.continuous = true;
-            recognition.interimResults = false; // Hanya ambil teks yang sudah pasti (final)
-            recognition.lang = 'id-ID'; // Setting ke Bahasa Indonesia
+            recognition.interimResults = false; 
+            recognition.lang = 'id-ID'; 
 
             recognition.onresult = (event: any) => {
                 let currentTranscript = '';
@@ -53,7 +54,6 @@ const MinutesForm: React.FC<{ onNavigate: (page: Page, data?: any) => void; init
                 }
                 
                 if (currentTranscript) {
-                    // Gabungkan teks lama dengan teks baru hasil rekaman
                     setFormData(prev => ({
                         ...prev,
                         content: (prev.content ? prev.content + ' ' : '') + currentTranscript.trim()
@@ -71,6 +71,7 @@ const MinutesForm: React.FC<{ onNavigate: (page: Page, data?: any) => void; init
             };
 
             recognitionRef.current = recognition;
+            setIsSpeechSupported(true); // PEMICU MUNCULNYA TOMBOL!
         }
     }, [initialData]);
 
@@ -214,8 +215,8 @@ const MinutesForm: React.FC<{ onNavigate: (page: Page, data?: any) => void; init
                 <div className="relative">
                     <textarea required value={formData.content} onChange={e => setFormData({...formData, content: e.target.value})} className="w-full p-4 bg-white border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-[#252859] outline-none transition-all shadow-sm min-h-[200px]" placeholder="Hasil Pembahasan (Ketik manual atau gunakan Mikrofon di pojok kanan bawah)..." />
                     
-                    {/* TOMBOL MIKROFON (SPEECH TO TEXT) */}
-                    {recognitionRef.current && (
+                    {/* TOMBOL MIKROFON (HANYA MUNCUL BILA DIDUKUNG BROWSER) */}
+                    {isSpeechSupported && (
                         <button 
                             type="button" 
                             onClick={toggleListening} 
