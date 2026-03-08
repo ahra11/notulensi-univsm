@@ -1,56 +1,38 @@
-/**
- * Spreadsheet Service - Universitas Sapta Mandiri
- * Sinkronisasi Online dengan Kontrol Pimpinan
- */
-
 const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz_HkRN5AXxzs8zEQ4ueXwkOqLblsY84iTmwvuGiNV0JcCVllJdO5NMI9Mv_jSfMd8ZNg/exec";
 
 export const SpreadsheetService = {
-    // ==========================================
-    // 1. MANAJEMEN NOTULENSI
-    // ==========================================
     async fetchAll(): Promise<any[]> {
         return this.fetchAllMinutes();
     },
 
     async fetchAllMinutes(): Promise<any[]> {
         try {
-            console.log("1. Mencoba menarik data Notulensi dari Cloud...");
             const response = await fetch(`${WEB_APP_URL}?actionType=read&_t=${Date.now()}`);
             const data = await response.json();
             
-            console.log("2. Data mentah dari Google Sheets:", data);
+            if (data.error) throw new Error(data.error);
 
-            if (data.error) {
-                console.error("3. Terjadi Error di server Google:", data.error);
-                throw new Error(data.error);
-            }
-
+            // PERBAIKAN: Tangani Array langsung
             const minutes = Array.isArray(data) ? data : [];
             
-            const sanitizedMinutes = minutes.map((m, i) => ({
+            const sanitizedMinutes = minutes.map((m: any, i: number) => ({
                 ...m,
                 id: m.id || `M-RECOVERY-${i}`, 
                 status: (m.status === 'SIGNED' && (m.signedby || m.signedBy)) ? 'SIGNED' : 'DRAFT',
                 title: String(m.title || "Tanpa Judul"),
             }));
 
-            // ANTI-JEBOL CACHE
             try {
-                const lightweightCache = sanitizedMinutes.map(m => {
+                const lightweightCache = sanitizedMinutes.map((m: any) => {
                     const { documentation, ...rest } = m;
                     return { ...rest, documentation: [] };
                 });
                 localStorage.setItem('usm_minutes_cache', JSON.stringify(lightweightCache));
-                console.log("4. Cache versi ringan berhasil disimpan.");
-            } catch (cacheError) {
-                console.warn("Peringatan: Memori lokal penuh.");
-            }
+            } catch (e) { console.warn("Memori lokal penuh."); }
 
             return sanitizedMinutes;
             
         } catch (error) {
-            console.error("X. Gagal menarik Notulensi dari Cloud:", error);
             const local = localStorage.getItem('usm_minutes_cache');
             return local ? JSON.parse(local) : [];
         }
@@ -75,14 +57,15 @@ export const SpreadsheetService = {
         return this.postToCloud({ id: id, actionType: 'delete' });
     },
 
-    // ==========================================
-    // 2. MANAJEMEN USER 
-    // ==========================================
     async getUsers(): Promise<any[]> {
         try {
             const response = await fetch(`${WEB_APP_URL}?action=getUsers&_t=${Date.now()}`);
             const data = await response.json();
-            const usersList = data.users && Array.isArray(data.users) ? data.users : [];
+            
+            // PERBAIKAN BUG LOGIN FATAL DI SINI:
+            // Google Script mengirimkan Array langsung, bukan { users: [...] }
+            const usersList = Array.isArray(data) ? data : (data.users || []);
+            
             localStorage.setItem('usm_users', JSON.stringify(usersList));
             return usersList;
         } catch (error) {
@@ -103,9 +86,6 @@ export const SpreadsheetService = {
         return this.postToCloud({ action: 'deleteUser', id: id });
     },
 
-    // ==========================================
-    // 3. FUNGSI PENGIRIMAN INTI
-    // ==========================================
     async postToCloud(payload: any) {
         try {
             const response = await fetch(WEB_APP_URL, {
@@ -115,20 +95,18 @@ export const SpreadsheetService = {
             });
             return await response.json();
         } catch (error) {
-            console.error("Gagal mengirim data ke Cloud:", error);
             throw error;
         }
     },
 
-    // ==========================================
-    // 4. MANAJEMEN JADWAL RAPAT
-    // ==========================================
     async getSchedules(): Promise<any[]> {
         try {
-            console.log("Menarik Jadwal Rapat...");
             const response = await fetch(`${WEB_APP_URL}?action=getSchedules&_t=${Date.now()}`);
             const data = await response.json();
-            const schedulesList = data.schedules && Array.isArray(data.schedules) ? data.schedules : [];
+            
+            // PERBAIKAN: Tangani array langsung untuk Jadwal
+            const schedulesList = Array.isArray(data) ? data : (data.schedules || []);
+            
             localStorage.setItem('usm_schedules', JSON.stringify(schedulesList));
             return schedulesList;
         } catch (error) {
