@@ -10,8 +10,6 @@ const Schedules: React.FC<SchedulesProps> = ({ onNavigate }) => {
     const [schedules, setSchedules] = useState<Schedule[]>([]);
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
-    
-    // STATE BARU UNTUK MODE EDIT
     const [editingId, setEditingId] = useState<string | null>(null); 
     
     const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
@@ -24,25 +22,79 @@ const Schedules: React.FC<SchedulesProps> = ({ onNavigate }) => {
         loadSchedules();
     }, []);
 
+    // 1. MESIN PEMBACA WAKTU SUPER TANGGUH (ANTI-TIMEZONE BUG)
     const parseScheduleDateTime = (dateStr: string, timeStr: string) => {
         if (!dateStr) return new Date(0);
         try {
-            const dateObj = new Date(dateStr);
-            if (timeStr) {
-                const cleanTime = String(timeStr).replace(/[^0-9:]/g, ''); 
-                const [hours, mins] = cleanTime.split(':');
-                dateObj.setHours(parseInt(hours) || 0, parseInt(mins) || 0, 0, 0);
+            let year, month, date;
+            
+            if (String(dateStr).includes('T')) {
+                // RAHASIA ANTI-BUG: Tambah 12 jam agar tidak bergeser hari akibat UTC
+                const d = new Date(dateStr);
+                d.setTime(d.getTime() + (12 * 60 * 60 * 1000));
+                year = d.getFullYear();
+                month = d.getMonth();
+                date = d.getDate();
             } else {
-                dateObj.setHours(23, 59, 59, 999);
+                const parts = String(dateStr).split('-');
+                year = parseInt(parts[0]);
+                month = parseInt(parts[1]) - 1;
+                date = parseInt(parts[2]);
             }
-            return dateObj;
+
+            const finalObj = new Date(year, month, date);
+
+            if (timeStr) {
+                if (String(timeStr).includes('T')) {
+                    const t = new Date(timeStr);
+                    finalObj.setHours(t.getHours(), t.getMinutes(), 0, 0);
+                } else {
+                    const cleanTime = String(timeStr).replace(/[^0-9:]/g, ''); 
+                    const [hours, mins] = cleanTime.split(':');
+                    finalObj.setHours(parseInt(hours) || 0, parseInt(mins) || 0, 0, 0);
+                }
+            } else {
+                finalObj.setHours(23, 59, 59, 999);
+            }
+            
+            return finalObj;
         } catch (e) {
             return new Date(0);
         }
     };
 
+    const formatDisplayDate = (rawDate: string, rawTime: string) => {
+        if (!rawDate) return '-';
+        try {
+            const d = parseScheduleDateTime(rawDate, rawTime);
+            return d.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+        } catch (e) { return String(rawDate); }
+    };
+
+    const formatDisplayTime = (rawDate: string, rawTime: string) => {
+        if (!rawTime) return '-';
+        try {
+            const d = parseScheduleDateTime(rawDate, rawTime);
+            return d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB';
+        } catch (e) { return String(rawTime); }
+    };
+
+    // 2. LOADING INSTAN (CACHE-FIRST STRATEGY)
     const loadSchedules = async () => {
-        setIsLoading(true);
+        // Tampilkan seketika dari memori lokal (0.1 detik)
+        const cached = localStorage.getItem('usm_schedules');
+        if (cached) {
+            try {
+                const parsed = JSON.parse(cached);
+                const sortedCached = [...parsed].sort((a, b) => parseScheduleDateTime(a.date, a.time).getTime() - parseScheduleDateTime(b.date, b.time).getTime());
+                setSchedules(sortedCached);
+                setIsLoading(false); // Matikan putaran loading agar halaman langsung siap
+            } catch(e) {}
+        } else {
+            setIsLoading(true);
+        }
+
+        // Tarik data terbaru dari server secara diam-diam
         try {
             const data = await SpreadsheetService.getSchedules();
             const sortedData = [...data].sort((a, b) => parseScheduleDateTime(a.date, a.time).getTime() - parseScheduleDateTime(b.date, b.time).getTime());
@@ -54,7 +106,6 @@ const Schedules: React.FC<SchedulesProps> = ({ onNavigate }) => {
         }
     };
 
-    // FUNGSI BARU: Saat tombol Edit ditekan
     const handleEditClick = (schedule: Schedule) => {
         setFormData({
             title: schedule.title,
@@ -65,10 +116,9 @@ const Schedules: React.FC<SchedulesProps> = ({ onNavigate }) => {
         });
         setEditingId(schedule.id);
         setIsFormOpen(true);
-        window.scrollTo({ top: 0, behavior: 'smooth' }); // Gulir ke atas formulir
+        window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
-    // FUNGSI BARU: Tutup dan bersihkan formulir
     const handleCancelForm = () => {
         setIsFormOpen(false);
         setEditingId(null);
@@ -88,7 +138,6 @@ const Schedules: React.FC<SchedulesProps> = ({ onNavigate }) => {
 
         try {
             if (editingId) {
-                // TRIK AMAN: Hapus data lama, lalu simpan yang baru sebagai update
                 await SpreadsheetService.deleteSchedule(editingId);
                 await SpreadsheetService.addSchedule(schedulePayload);
                 alert("Jadwal berhasil diperbarui!");
@@ -101,6 +150,10 @@ const Schedules: React.FC<SchedulesProps> = ({ onNavigate }) => {
                 .sort((a, b) => parseScheduleDateTime(a.date, a.time).getTime() - parseScheduleDateTime(b.date, b.time).getTime());
             
             setSchedules(updatedSchedules);
+            
+            // Simpan perubahan ke memori lokal agar saat refresh tetap cepat
+            localStorage.setItem('usm_schedules', JSON.stringify(updatedSchedules));
+            
             handleCancelForm();
         } catch (error) {
             alert("Gagal menyimpan jadwal ke Cloud.");
@@ -114,7 +167,9 @@ const Schedules: React.FC<SchedulesProps> = ({ onNavigate }) => {
             setIsLoading(true);
             try {
                 await SpreadsheetService.deleteSchedule(id);
-                setSchedules(schedules.filter(s => s.id !== id));
+                const filtered = schedules.filter(s => s.id !== id);
+                setSchedules(filtered);
+                localStorage.setItem('usm_schedules', JSON.stringify(filtered)); // Update cache
             } catch (error) {
                 alert("Gagal menghapus jadwal.");
             } finally {
@@ -154,14 +209,14 @@ const Schedules: React.FC<SchedulesProps> = ({ onNavigate }) => {
                 <div>
                     <div className="flex items-center gap-3">
                         <h1 className="text-2xl font-black text-slate-900 tracking-tight">Penjadwalan Rapat</h1>
-                        {isLoading && <div className="size-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>}
+                        {isLoading && <div className="size-4 border-2 border-[#252859] border-t-transparent rounded-full animate-spin"></div>}
                     </div>
                     <p className="text-sm text-slate-500 font-medium">Atur dan pantau agenda pertemuan civitas USM</p>
                 </div>
 
                 <div className="flex gap-2">
-                    <button onClick={loadSchedules} className="p-3 bg-slate-100 text-slate-500 rounded-2xl hover:bg-slate-200 transition-all">
-                        <span className="material-symbols-outlined">sync</span>
+                    <button onClick={loadSchedules} className="p-3 bg-slate-100 text-slate-500 rounded-2xl hover:bg-slate-200 transition-all" title="Sinkronkan Data">
+                        <span className={`material-symbols-outlined ${isLoading ? 'animate-spin' : ''}`}>sync</span>
                     </button>
                     <button onClick={() => isFormOpen ? handleCancelForm() : setIsFormOpen(true)} className="flex items-center justify-center gap-2 px-6 py-3 bg-[#252859] text-white rounded-2xl font-bold text-sm uppercase tracking-widest shadow-lg hover:brightness-110 transition-all">
                         <span className="material-symbols-outlined">{isFormOpen ? 'close' : 'calendar_add_on'}</span>
@@ -192,7 +247,6 @@ const Schedules: React.FC<SchedulesProps> = ({ onNavigate }) => {
                         <div className="md:col-span-2 space-y-2">
                             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Lokasi / Tautan Google Meet</label>
                             <input required type="text" placeholder="Gedung Rektorat Lt. 2 / meet.google.com/abc-defg-hij" value={formData.location} onChange={(e) => setFormData({...formData, location: e.target.value})} className="w-full p-4 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-[#252859] transition-all text-sm font-medium" />
-                            <p className="text-[9px] text-slate-400 ml-1">Tips: Masukkan link meet.google.com agar berubah jadi tombol otomatis.</p>
                         </div>
                         <div className="md:col-span-2 space-y-2">
                             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Agenda Pembahasan</label>
@@ -223,7 +277,6 @@ const Schedules: React.FC<SchedulesProps> = ({ onNavigate }) => {
                                     </span>
                                     {(currentUser.role === 'SUPER_ADMIN' || currentUser.name === schedule.createdBy) && (
                                         <>
-                                            {/* TOMBOL EDIT BARU */}
                                             <button onClick={() => handleEditClick(schedule)} className="p-1 text-slate-300 hover:text-blue-500 transition-colors" title="Edit Jadwal">
                                                 <span className="material-symbols-outlined text-xl">edit</span>
                                             </button>
@@ -242,11 +295,11 @@ const Schedules: React.FC<SchedulesProps> = ({ onNavigate }) => {
                             <div className="space-y-3 mb-6">
                                 <div className="flex items-center gap-2 text-slate-500">
                                     <span className="material-symbols-outlined text-sm">calendar_today</span>
-                                    <span className="text-xs font-medium">{schedule.date}</span>
+                                    <span className="text-xs font-medium">{formatDisplayDate(schedule.date, schedule.time)}</span>
                                 </div>
                                 <div className="flex items-center gap-2 text-slate-500">
                                     <span className="material-symbols-outlined text-sm">schedule</span>
-                                    <span className="text-xs font-medium">{schedule.time} WIB</span>
+                                    <span className="text-xs font-medium">{formatDisplayTime(schedule.date, schedule.time)}</span>
                                 </div>
                                 <div className="flex items-start gap-2 text-slate-500">
                                     <span className="material-symbols-outlined text-sm mt-0.5">location_on</span>
