@@ -1,4 +1,4 @@
-const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbytf1u-7EEvskYyyscJsFuWAKnXebiUm8BTkZ6i7Pea3G4mmRP4dBtgCnmjhvWAihPt0g/exec";
+const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbztz4qA2tEdqieMPHAOazMIo-5nGAQWVZoSW159zwDiSSaqxCx-Lmw-AyzzUcpp3o1gVg/exec";
 
 export const SpreadsheetService = {
     async fetchAll(): Promise<any[]> {
