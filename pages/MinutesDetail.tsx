@@ -16,7 +16,6 @@ const MinutesDetail: React.FC<{ minute: Minute | null; onNavigate: (p: Page) => 
         if (minute) setCurrentMinute(minute);
     }, [minute]);
 
-    // KONVERTER LINK GOOGLE DRIVE AGAR GAMBAR MUNCUL
     const getDirectImg = (url: string) => {
         if (!url || typeof url !== 'string') return '';
         if (url.includes('drive.google.com')) {
@@ -40,7 +39,6 @@ const MinutesDetail: React.FC<{ minute: Minute | null; onNavigate: (p: Page) => 
         try { return JSON.parse(String(currentMinute.documentation)); } catch (e) { return []; }
     };
 
-    // LOGIKA TANDA TANGAN
     const startDrawing = (e: any) => {
         const canvas = canvasRef.current;
         if (!canvas) return;
@@ -87,11 +85,18 @@ const MinutesDetail: React.FC<{ minute: Minute | null; onNavigate: (p: Page) => 
                     .no-print { display: none !important; }
                     .main-container { box-shadow: none !important; border: none !important; padding: 0 !important; width: 100% !important; max-width: 100% !important; }
                     .print-area { font-family: 'Times New Roman', Times, serif !important; color: black !important; line-height: 1.3; }
-                    .kop-border { border-bottom: 4px solid black !important; margin-bottom: 2px !important; }
-                    .kop-border-thin { border-bottom: 1px solid black !important; margin-bottom: 20px !important; }
+                    
+                    /* CSS KHUSUS GARIS PEMBATAS KOP */
+                    .kop-line-thick { border-bottom: 3.5pt solid black !important; width: 100% !important; margin-top: 5px !important; }
+                    .kop-line-thin { border-bottom: 1pt solid black !important; width: 100% !important; margin-top: 2px !important; margin-bottom: 25px !important; }
+                    
                     .break-page { page-break-before: always; }
                     .signature-table td { vertical-align: top; }
                 }
+                
+                /* Tampilan di Layar (Bukan Cetak) */
+                .kop-line-thick { border-bottom: 4px solid black; width: 100%; margin-top: 5px; }
+                .kop-line-thin { border-bottom: 1.5px solid black; width: 100%; margin-top: 2px; margin-bottom: 25px; }
             `}} />
 
             {/* Menu Navigasi (No-Print) */}
@@ -115,26 +120,29 @@ const MinutesDetail: React.FC<{ minute: Minute | null; onNavigate: (p: Page) => 
             <div className="main-container w-full max-w-4xl bg-white shadow-2xl border p-8 md:p-14">
                 <div className="print-area text-black">
                     
-                    {/* KOP SURAT LENGKAP KAMPUS I & II */}
-                    <div className="flex items-center kop-border pb-1">
-                        <div className="w-[120px] mr-4 flex-shrink-0">
+                    {/* KOP SURAT LENGKAP */}
+                    <div className="flex items-center">
+                        <div className="w-[125px] mr-5 flex-shrink-0">
                             <img src={logoUSM} className="w-full h-auto" alt="Logo USM" />
                         </div>
                         <div className="flex-1 text-center pr-10">
                             <div className="text-[12pt] leading-tight">YAYASAN SAPTA BAKTI PENDIDIKAN</div>
                             <div className="text-[22pt] font-black my-1 leading-none">UNIVERSITAS SAPTA MANDIRI</div>
                             <div className="text-[14pt] font-bold mb-2">SK Pendirian No. 661 / E/O/2024</div>
-                            <div className="text-[9pt] leading-tight">Kampus I : JL. A. Yani RT.07 Kel. Batu Piring Kec. Paringin Selatan Kab. Balangan Kalsel</div>
-                            <div className="text-[9pt] leading-tight">Kampus II : JL. A. Yani KM. 5 Kel. Batu Piring Kec. Paringin Selatan Kab. Balangan Kalsel</div>
-                            <div className="text-[8pt] mt-1">
+                            <div className="text-[9.5pt] leading-tight font-medium">Kampus I : JL. A. Yani RT.07 Kel. Batu Piring Kec. Paringin Selatan Kab. Balangan Kalsel</div>
+                            <div className="text-[9.5pt] leading-tight font-medium">Kampus II : JL. A. Yani KM. 5 Kel. Batu Piring Kec. Paringin Selatan Kab. Balangan Kalsel</div>
+                            <div className="text-[8.5pt] mt-1">
                                 Telp/Fax (0526) 209 5962 CP: 0877 7687 7462 Kode Pos : 71618
                             </div>
-                            <div className="text-[8pt]">
+                            <div className="text-[8.5pt]">
                                 Website : <span className="text-blue-700 underline">www.univsm.ac.id</span> Email : <span className="text-blue-700 underline">info@univsm.ac.id</span>
                             </div>
                         </div>
                     </div>
-                    <div className="kop-border-thin"></div>
+
+                    {/* GARIS PEMBATAS KOP SURAT (TEBAL & TIPIS) */}
+                    <div className="kop-line-thick"></div>
+                    <div className="kop-line-thin"></div>
 
                     {/* JUDUL NOTULENSI */}
                     <div className="text-center mb-8">
@@ -157,7 +165,7 @@ const MinutesDetail: React.FC<{ minute: Minute | null; onNavigate: (p: Page) => 
                         </div>
                     </div>
 
-                    {/* AREA TANDA TANGAN SEJAJAR (NOTULIS & REKTOR) */}
+                    {/* AREA TANDA TANGAN */}
                     <table className="w-full border-none signature-table mt-20">
                         <tbody>
                             <tr>
@@ -182,7 +190,7 @@ const MinutesDetail: React.FC<{ minute: Minute | null; onNavigate: (p: Page) => 
                         </tbody>
                     </table>
 
-                    {/* LAMPIRAN DOKUMENTASI (FOTO DARI DRIVE) */}
+                    {/* LAMPIRAN DOKUMENTASI */}
                     {getDocs().length > 0 && (
                         <div className="break-page mt-24 pt-10 border-t border-dashed border-slate-300">
                             <h3 className="text-center font-bold underline mb-10 uppercase text-[14pt]">LAMPIRAN DOKUMENTASI</h3>
@@ -212,7 +220,7 @@ const MinutesDetail: React.FC<{ minute: Minute | null; onNavigate: (p: Page) => 
                                 ref={canvasRef} 
                                 width={400} 
                                 height={200} 
-                                className="w-full h-[200px] cursor-crosshair"
+                                className="w-full h-[200px] cursor-crosshair bg-white"
                                 onMouseDown={startDrawing}
                                 onMouseMove={draw}
                                 onMouseUp={() => setIsDrawing(false)}
@@ -229,7 +237,7 @@ const MinutesDetail: React.FC<{ minute: Minute | null; onNavigate: (p: Page) => 
                                 }} 
                                 className="text-red-500 font-bold hover:underline"
                             >
-                                Hapus Coreatan
+                                Hapus Coretan
                             </button>
                             <div className="flex gap-2">
                                 <button onClick={() => setShowSignaturePad(false)} className="px-5 py-2 bg-slate-100 rounded-xl font-bold">Batal</button>
