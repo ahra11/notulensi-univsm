@@ -1,10 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Page, Minute } from '../types';
 import { SpreadsheetService } from '../services/spreadsheet';
 
 const MinutesForm: React.FC<{ onNavigate: (page: Page, data?: any) => void; initialData?: Minute | null }> = ({ onNavigate, initialData }) => {
     const [isLoading, setIsLoading] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
+    const [isListening, setIsListening] = useState(false);
+    
+    // Referensi untuk mesin pendeteksi suara
+    const recognitionRef = useRef<any>(null);
+
     const [formData, setFormData] = useState<Partial<Minute>>({
         title: '',
         date: new Date().toISOString().split('T')[0],
@@ -16,7 +21,6 @@ const MinutesForm: React.FC<{ onNavigate: (page: Page, data?: any) => void; init
         status: 'DRAFT'
     });
 
-    // Pengaman anti-crash saat membaca memori
     let user = { name: 'Staf USM' };
     try {
         user = JSON.parse(localStorage.getItem('currentUser') || '{}');
@@ -31,9 +35,59 @@ const MinutesForm: React.FC<{ onNavigate: (page: Page, data?: any) => void; init
                 documentation: Array.isArray(initialData.documentation) ? initialData.documentation : []
             });
         }
+
+        // INIT: Mesin Perekam Suara (Speech to Text)
+        const SpeechRecognition = window.SpeechRecognition || (window as any).webkitSpeechRecognition;
+        if (SpeechRecognition) {
+            const recognition = new SpeechRecognition();
+            recognition.continuous = true;
+            recognition.interimResults = false; // Hanya ambil teks yang sudah pasti (final)
+            recognition.lang = 'id-ID'; // Setting ke Bahasa Indonesia
+
+            recognition.onresult = (event: any) => {
+                let currentTranscript = '';
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    if (event.results[i].isFinal) {
+                        currentTranscript += event.results[i][0].transcript + '. ';
+                    }
+                }
+                
+                if (currentTranscript) {
+                    // Gabungkan teks lama dengan teks baru hasil rekaman
+                    setFormData(prev => ({
+                        ...prev,
+                        content: (prev.content ? prev.content + ' ' : '') + currentTranscript.trim()
+                    }));
+                }
+            };
+
+            recognition.onerror = (event: any) => {
+                console.error("Speech recognition error", event.error);
+                setIsListening(false);
+            };
+
+            recognition.onend = () => {
+                setIsListening(false);
+            };
+
+            recognitionRef.current = recognition;
+        }
     }, [initialData]);
 
-    // MESIN KOMPRESOR 4 FOTO ANTI-JEBOL
+    const toggleListening = () => {
+        if (isListening) {
+            recognitionRef.current?.stop();
+            setIsListening(false);
+        } else {
+            try {
+                recognitionRef.current?.start();
+                setIsListening(true);
+            } catch (e) {
+                console.error("Gagal memulai rekaman", e);
+            }
+        }
+    };
+
     const compressImage = (file: File): Promise<string> => {
         return new Promise((resolve, reject) => {
             const reader = new FileReader();
@@ -133,7 +187,6 @@ const MinutesForm: React.FC<{ onNavigate: (page: Page, data?: any) => void; init
             }
             alert(initialData ? 'Penyelamatan Data Arsip Berhasil Diperbarui!' : 'Notulensi & Dokumentasi Berhasil Disimpan!');
             
-            // Bersihkan memori agar arsip langsung memuat data terbaru dari Cloud
             localStorage.removeItem('usm_minutes_cache'); 
             
             onNavigate('history');
@@ -142,7 +195,6 @@ const MinutesForm: React.FC<{ onNavigate: (page: Page, data?: any) => void; init
         } finally { setIsLoading(false); }
     };
 
-    // LAYAR ANTI-MACET (Pastikan formulir langsung terbuka)
     return (
         <div className="p-4 md:p-8 animate-in fade-in duration-500">
             <div className="flex justify-between items-center mb-8">
@@ -159,7 +211,21 @@ const MinutesForm: React.FC<{ onNavigate: (page: Page, data?: any) => void; init
                     <input required type="text" value={formData.location} onChange={e => setFormData({...formData, location: e.target.value})} className="p-4 bg-white border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-[#252859] outline-none transition-all shadow-sm" placeholder="Lokasi" />
                 </div>
 
-                <textarea required value={formData.content} onChange={e => setFormData({...formData, content: e.target.value})} className="w-full p-4 bg-white border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-[#252859] outline-none transition-all shadow-sm min-h-[200px]" placeholder="Hasil Pembahasan..." />
+                <div className="relative">
+                    <textarea required value={formData.content} onChange={e => setFormData({...formData, content: e.target.value})} className="w-full p-4 bg-white border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-[#252859] outline-none transition-all shadow-sm min-h-[200px]" placeholder="Hasil Pembahasan (Ketik manual atau gunakan Mikrofon di pojok kanan bawah)..." />
+                    
+                    {/* TOMBOL MIKROFON (SPEECH TO TEXT) */}
+                    {recognitionRef.current && (
+                        <button 
+                            type="button" 
+                            onClick={toggleListening} 
+                            className={`absolute bottom-4 right-4 p-4 rounded-full flex items-center justify-center transition-all shadow-lg border border-transparent ${isListening ? 'bg-red-500 text-white animate-pulse border-red-300' : 'bg-slate-100 text-slate-500 hover:bg-[#252859] hover:text-white'}`}
+                            title={isListening ? "Hentikan Rekaman" : "Mulai Dikte Suara (Speech to Text)"}
+                        >
+                            <span className="material-symbols-outlined">{isListening ? 'mic_off' : 'mic'}</span>
+                        </button>
+                    )}
+                </div>
 
                 <div>
                     <label className="text-[10px] font-black uppercase text-slate-400 ml-2">Tautan Ekstra (Opsional)</label>
