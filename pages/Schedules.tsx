@@ -8,28 +8,38 @@ interface SchedulesProps {
 
 const Schedules: React.FC<SchedulesProps> = ({ onNavigate }) => {
     const [schedules, setSchedules] = useState<Schedule[]>([]);
+    const [users, setUsers] = useState<any[]>([]); // State untuk menyimpan daftar akun terdaftar
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [editingId, setEditingId] = useState<string | null>(null); 
     
     const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
     
+    // Tambahan state: participants (array of emails)
     const [formData, setFormData] = useState({
-        title: '', date: '', time: '', location: '', agenda: ''
+        title: '', date: '', time: '', location: '', agenda: '', participants: [] as string[]
     });
 
     useEffect(() => {
         loadSchedules();
+        loadUsers(); // Panggil data user saat halaman dimuat
     }, []);
 
-    // 1. MESIN PEMBACA WAKTU SUPER TANGGUH (ANTI-TIMEZONE BUG)
+    // Mengambil data user yang terdaftar
+    const loadUsers = async () => {
+        try {
+            const data = await SpreadsheetService.getUsers();
+            setUsers(data);
+        } catch (error) {
+            console.error("Gagal memuat data pengguna", error);
+        }
+    };
+
     const parseScheduleDateTime = (dateStr: string, timeStr: string) => {
         if (!dateStr) return new Date(0);
         try {
             let year, month, date;
-            
             if (String(dateStr).includes('T')) {
-                // RAHASIA ANTI-BUG: Tambah 12 jam agar tidak bergeser hari akibat UTC
                 const d = new Date(dateStr);
                 d.setTime(d.getTime() + (12 * 60 * 60 * 1000));
                 year = d.getFullYear();
@@ -56,7 +66,6 @@ const Schedules: React.FC<SchedulesProps> = ({ onNavigate }) => {
             } else {
                 finalObj.setHours(23, 59, 59, 999);
             }
-            
             return finalObj;
         } catch (e) {
             return new Date(0);
@@ -79,22 +88,19 @@ const Schedules: React.FC<SchedulesProps> = ({ onNavigate }) => {
         } catch (e) { return String(rawTime); }
     };
 
-    // 2. LOADING INSTAN (CACHE-FIRST STRATEGY)
     const loadSchedules = async () => {
-        // Tampilkan seketika dari memori lokal (0.1 detik)
         const cached = localStorage.getItem('usm_schedules');
         if (cached) {
             try {
                 const parsed = JSON.parse(cached);
                 const sortedCached = [...parsed].sort((a, b) => parseScheduleDateTime(a.date, a.time).getTime() - parseScheduleDateTime(b.date, b.time).getTime());
                 setSchedules(sortedCached);
-                setIsLoading(false); // Matikan putaran loading agar halaman langsung siap
+                setIsLoading(false);
             } catch(e) {}
         } else {
             setIsLoading(true);
         }
 
-        // Tarik data terbaru dari server secara diam-diam
         try {
             const data = await SpreadsheetService.getSchedules();
             const sortedData = [...data].sort((a, b) => parseScheduleDateTime(a.date, a.time).getTime() - parseScheduleDateTime(b.date, b.time).getTime());
@@ -106,13 +112,15 @@ const Schedules: React.FC<SchedulesProps> = ({ onNavigate }) => {
         }
     };
 
-    const handleEditClick = (schedule: Schedule) => {
+    const handleEditClick = (schedule: any) => {
         setFormData({
             title: schedule.title,
             date: schedule.date,
             time: schedule.time,
             location: schedule.location,
-            agenda: schedule.agenda || ''
+            agenda: schedule.agenda || '',
+            // Jika ada peserta sebelumnya, parse array-nya
+            participants: typeof schedule.participants === 'string' ? JSON.parse(schedule.participants) : (schedule.participants || [])
         });
         setEditingId(schedule.id);
         setIsFormOpen(true);
@@ -122,14 +130,26 @@ const Schedules: React.FC<SchedulesProps> = ({ onNavigate }) => {
     const handleCancelForm = () => {
         setIsFormOpen(false);
         setEditingId(null);
-        setFormData({ title: '', date: '', time: '', location: '', agenda: '' });
+        setFormData({ title: '', date: '', time: '', location: '', agenda: '', participants: [] });
+    };
+
+    // Fungsi untuk handle Ceklis Peserta
+    const handleParticipantToggle = (email: string) => {
+        setFormData(prev => {
+            const isSelected = prev.participants.includes(email);
+            if (isSelected) {
+                return { ...prev, participants: prev.participants.filter(e => e !== email) };
+            } else {
+                return { ...prev, participants: [...prev.participants, email] };
+            }
+        });
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
         
-        const schedulePayload: Schedule = {
+        const schedulePayload: any = {
             id: editingId || `SCH-${Date.now()}`,
             ...formData,
             status: 'UPCOMING',
@@ -143,15 +163,13 @@ const Schedules: React.FC<SchedulesProps> = ({ onNavigate }) => {
                 alert("Jadwal berhasil diperbarui!");
             } else {
                 await SpreadsheetService.addSchedule(schedulePayload);
-                alert("Jadwal berhasil dipublikasikan ke seluruh Civitas!");
+                alert("Jadwal berhasil dikirim ke peserta yang dipilih!");
             }
             
             const updatedSchedules = [schedulePayload, ...schedules.filter(s => s.id !== editingId)]
                 .sort((a, b) => parseScheduleDateTime(a.date, a.time).getTime() - parseScheduleDateTime(b.date, b.time).getTime());
             
             setSchedules(updatedSchedules);
-            
-            // Simpan perubahan ke memori lokal agar saat refresh tetap cepat
             localStorage.setItem('usm_schedules', JSON.stringify(updatedSchedules));
             
             handleCancelForm();
@@ -163,13 +181,13 @@ const Schedules: React.FC<SchedulesProps> = ({ onNavigate }) => {
     };
 
     const handleDelete = async (id: string) => {
-        if (window.confirm('Hapus jadwal rapat ini untuk semua orang?')) {
+        if (window.confirm('Hapus jadwal rapat ini?')) {
             setIsLoading(true);
             try {
                 await SpreadsheetService.deleteSchedule(id);
                 const filtered = schedules.filter(s => s.id !== id);
                 setSchedules(filtered);
-                localStorage.setItem('usm_schedules', JSON.stringify(filtered)); // Update cache
+                localStorage.setItem('usm_schedules', JSON.stringify(filtered)); 
             } catch (error) {
                 alert("Gagal menghapus jadwal.");
             } finally {
@@ -211,7 +229,7 @@ const Schedules: React.FC<SchedulesProps> = ({ onNavigate }) => {
                         <h1 className="text-2xl font-black text-slate-900 tracking-tight">Penjadwalan Rapat</h1>
                         {isLoading && <div className="size-4 border-2 border-[#252859] border-t-transparent rounded-full animate-spin"></div>}
                     </div>
-                    <p className="text-sm text-slate-500 font-medium">Atur dan pantau agenda pertemuan civitas USM</p>
+                    <p className="text-sm text-slate-500 font-medium">Atur dan undang peserta rapat secara custom</p>
                 </div>
 
                 <div className="flex gap-2">
@@ -252,9 +270,35 @@ const Schedules: React.FC<SchedulesProps> = ({ onNavigate }) => {
                             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Agenda Pembahasan</label>
                             <textarea required placeholder="Tuliskan poin-poin agenda..." value={formData.agenda} onChange={(e) => setFormData({...formData, agenda: e.target.value})} className="w-full p-4 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-[#252859] transition-all text-sm font-medium min-h-[120px]" />
                         </div>
-                        <div className="md:col-span-2">
+
+                        {/* KOTAK PILIHAN PESERTA (CUSTOM INVITATION) */}
+                        <div className="md:col-span-2 space-y-2">
+                            <div className="flex justify-between items-end">
+                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Undang Peserta Khusus (Opsional)</label>
+                                <span className="text-[10px] text-slate-400">{formData.participants.length} Terpilih</span>
+                            </div>
+                            <div className="w-full p-4 bg-slate-50 rounded-2xl border border-slate-100 max-h-40 overflow-y-auto grid grid-cols-1 md:grid-cols-2 gap-2">
+                                {users.map(u => (
+                                    <label key={u.email} className={`flex items-center gap-3 p-2 rounded-xl cursor-pointer transition-all ${formData.participants.includes(u.email) ? 'bg-blue-100/50' : 'hover:bg-slate-200/50'}`}>
+                                        <input 
+                                            type="checkbox" 
+                                            className="w-4 h-4 text-[#252859] rounded border-slate-300 focus:ring-[#252859]"
+                                            checked={formData.participants.includes(u.email)}
+                                            onChange={() => handleParticipantToggle(u.email)}
+                                        />
+                                        <div className="flex flex-col">
+                                            <span className="text-xs font-bold text-slate-800">{u.name}</span>
+                                            <span className="text-[10px] text-slate-500">{u.role}</span>
+                                        </div>
+                                    </label>
+                                ))}
+                            </div>
+                            <p className="text-[10px] text-slate-400 italic">*Jika tidak ada yang diceklis, jadwal hanya tersimpan di web tanpa mengirim email.</p>
+                        </div>
+
+                        <div className="md:col-span-2 mt-4">
                             <button disabled={isLoading} type="submit" className="w-full py-4 bg-[#252859] text-white rounded-2xl font-bold uppercase tracking-widest hover:bg-black transition-all disabled:opacity-50">
-                                {isLoading ? 'Menyimpan ke Cloud...' : (editingId ? 'Simpan Perubahan' : 'Simpan dan Publikasikan Jadwal')}
+                                {isLoading ? 'Memproses Undangan...' : (editingId ? 'Simpan Perubahan' : 'Simpan dan Kirim Undangan')}
                             </button>
                         </div>
                     </form>
@@ -262,8 +306,10 @@ const Schedules: React.FC<SchedulesProps> = ({ onNavigate }) => {
             )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {schedules.length > 0 ? schedules.map((schedule) => {
+                {schedules.length > 0 ? schedules.map((schedule: any) => {
                     const status = getScheduleStatus(schedule.date, schedule.time);
+                    // Parse jumlah peserta dari string database
+                    const parsedParticipants = typeof schedule.participants === 'string' ? JSON.parse(schedule.participants || "[]") : (schedule.participants || []);
                     
                     return (
                         <div key={schedule.id} className={`p-6 rounded-[2rem] border transition-all group relative flex flex-col h-full ${status === 'SELESAI' ? 'bg-slate-50 border-slate-100 opacity-70 hover:opacity-100' : 'bg-white border-slate-200 shadow-sm hover:shadow-md'}`}>
@@ -304,6 +350,11 @@ const Schedules: React.FC<SchedulesProps> = ({ onNavigate }) => {
                                 <div className="flex items-start gap-2 text-slate-500">
                                     <span className="material-symbols-outlined text-sm mt-0.5">location_on</span>
                                     <div>{renderLocation(schedule.location)}</div>
+                                </div>
+                                {/* Info jumlah peserta di Card */}
+                                <div className="flex items-center gap-2 text-slate-500">
+                                    <span className="material-symbols-outlined text-sm">group</span>
+                                    <span className="text-xs font-medium">{parsedParticipants.length} Peserta Diundang</span>
                                 </div>
                             </div>
 
